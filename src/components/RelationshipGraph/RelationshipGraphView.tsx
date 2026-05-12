@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
+// nodes/edges are fully controlled via useMemo — no useNodesState/useEdgesState needed
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   type NodeMouseHandler,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
@@ -12,7 +11,9 @@ import 'reactflow/dist/style.css'
 import { ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
 import { buildProcessLevelGraph, buildDetailLevelGraph, type GraphLevel } from './graphUtils'
 import { ALL_PROCESSES } from '../../data'
-import type { Language, Process } from '../../types/aspice'
+import { GroupFilterBar } from '../common/GroupFilterBar'
+import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
+import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
 
@@ -30,22 +31,21 @@ interface Props {
 export function RelationshipGraphView({ lang }: Props) {
   const [level, setLevel] = useState<GraphLevel>('process')
   const [focusProcess, setFocusProcess] = useState<Process | null>(null)
+  const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
+    new Set(PROCESS_GROUPS.map((g) => g.id))
+  )
+  const [activeEdgeTypes, setActiveEdgeTypes] = useState<Set<EdgeType>>(
+    new Set<EdgeType>(['supports', 'produces', 'input'])
+  )
 
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {
     if (level === 'process') {
-      return buildProcessLevelGraph(ALL_PROCESSES, lang)
+      return buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
     } else if (focusProcess) {
-      return buildDetailLevelGraph(focusProcess, lang)
+      return buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
     }
     return { nodes: [], edges: [] }
-  }, [level, focusProcess, lang])
-
-  const [nodes, , onNodesChange] = useNodesState(initNodes)
-  const [edges, , onEdgesChange] = useEdgesState(initEdges)
-
-  // Re-init when source data changes
-  const currentNodes = useMemo(() => initNodes, [initNodes])
-  const currentEdges = useMemo(() => initEdges, [initEdges])
+  }, [level, focusProcess, lang, activeGroups, activeEdgeTypes])
 
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
     if (level === 'process') {
@@ -57,15 +57,26 @@ export function RelationshipGraphView({ lang }: Props) {
     }
   }, [level])
 
+  const handleBackToProcess = () => {
+    setLevel('process')
+    setFocusProcess(null)
+  }
+
   const groupMeta = focusProcess ? PROCESS_GROUPS.find((g) => g.id === focusProcess.group) : null
 
   return (
     <div className="flex flex-col h-full">
+      {/* Group filter (process level only) */}
+      {level === 'process' && (
+        <GroupFilterBar selected={activeGroups} lang={lang} onChange={setActiveGroups} />
+      )}
+
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-5 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
-        <div className="flex rounded-lg overflow-hidden border border-gray-700">
+      <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-900 border-b border-gray-800 shrink-0 flex-wrap">
+        {/* Level tabs */}
+        <div className="flex rounded-lg overflow-hidden border border-gray-700 shrink-0">
           <button
-            onClick={() => setLevel('process')}
+            onClick={handleBackToProcess}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
               level === 'process' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
@@ -86,48 +97,45 @@ export function RelationshipGraphView({ lang }: Props) {
           </button>
         </div>
 
+        {/* Focus process badge */}
         {level === 'bp' && focusProcess && groupMeta && (
           <div className="flex items-center gap-2">
             <span className="text-gray-500 text-xs">→</span>
             <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{focusProcess.id}</span>
             <span className="text-xs text-gray-300">{t(focusProcess.name, lang)}</span>
             <button
-              onClick={() => { setLevel('process'); setFocusProcess(null) }}
-              className="ml-2 text-xs text-gray-500 hover:text-gray-200 underline"
+              onClick={handleBackToProcess}
+              className="ml-1 text-xs text-gray-500 hover:text-gray-200 underline"
             >
               {lang === 'en' ? 'Back' : '戻る'}
             </button>
           </div>
         )}
 
-        {level === 'process' && (
-          <span className="text-xs text-gray-500">
-            {lang === 'en' ? 'Click a process node to drill down' : 'プロセスノードをクリックして展開'}
-          </span>
-        )}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-5 py-2 bg-gray-950 border-b border-gray-800 shrink-0 text-xs text-gray-500">
+        {/* Edge type filter (BP level only) */}
         {level === 'bp' && (
-          <>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-indigo-500 inline-block" style={{ borderTop: '2px dashed #6366f1' }}></span>{lang === 'en' ? 'supports outcome' : 'プロセス成果を達成'}</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-green-500 inline-block"></span>{lang === 'en' ? 'produces item' : '情報項目を生成'}</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block"></span>{lang === 'en' ? 'input item' : '入力情報項目'}</span>
-          </>
+          <div className="ml-auto">
+            <EdgeTypeFilterBar
+              selected={activeEdgeTypes}
+              lang={lang}
+              onChange={setActiveEdgeTypes}
+            />
+          </div>
         )}
+
+        {/* Hint text */}
         {level === 'process' && (
-          <span>{lang === 'en' ? 'Edges = information item flow between processes' : 'エッジ = プロセス間の情報項目フロー'}</span>
+          <span className="ml-auto text-xs text-gray-500">
+            {lang === 'en' ? 'Click a node to drill down' : 'ノードをクリックして展開'}
+          </span>
         )}
       </div>
 
       {/* Graph */}
       <div className="flex-1">
         <ReactFlow
-          nodes={currentNodes}
-          edges={currentEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          nodes={initNodes}
+          edges={initEdges}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView

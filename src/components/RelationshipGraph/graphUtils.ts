@@ -1,10 +1,10 @@
 import type { Node, Edge } from 'reactflow'
-import type { Process } from '../../types/aspice'
+import type { Process, ProcessGroup } from '../../types/aspice'
 import type { Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
-import { PROCESS_GROUPS } from '../../data'
+import type { EdgeType } from '../common/EdgeTypeFilterBar'
 
-export type GraphLevel = 'process' | 'bp' | 'item'
+export type GraphLevel = 'process' | 'bp'
 
 const GROUP_COLOR: Record<string, string> = {
   SYS: '#1e3a5f',
@@ -32,9 +32,16 @@ function processNodeColor(group: string) {
   return { bg: GROUP_COLOR[group] ?? '#1f2937', border: GROUP_BORDER[group] ?? '#4b5563' }
 }
 
-/** Build nodes/edges for process-level view (all processes as nodes, edges = shared information items) */
-export function buildProcessLevelGraph(processes: Process[], lang: Language): { nodes: Node[]; edges: Edge[] } {
-  const nodes: Node[] = processes.map((p, i) => {
+/** Build nodes/edges for process-level view with optional group filter */
+export function buildProcessLevelGraph(
+  processes: Process[],
+  lang: Language,
+  activeGroups: Set<ProcessGroup>
+): { nodes: Node[]; edges: Edge[] } {
+  const filtered = processes.filter((p) => activeGroups.has(p.group))
+  const filteredIds = new Set(filtered.map((p) => p.id))
+
+  const nodes: Node[] = filtered.map((p, i) => {
     const col = i % 6
     const row = Math.floor(i / 6)
     const { bg, border } = processNodeColor(p.group)
@@ -47,10 +54,11 @@ export function buildProcessLevelGraph(processes: Process[], lang: Language): { 
   })
 
   // Build edges: process A produces itemX → process B consumes itemX
+  // Both endpoints must be in the filtered set
   const itemProducers: Record<string, string[]> = {}
   const itemConsumers: Record<string, string[]> = {}
 
-  for (const p of processes) {
+  for (const p of filtered) {
     for (const bp of p.basePractices) {
       for (const ref of bp.outputs) {
         if (!itemProducers[ref.itemId]) itemProducers[ref.itemId] = []
@@ -71,6 +79,7 @@ export function buildProcessLevelGraph(processes: Process[], lang: Language): { 
     for (const src of producers) {
       for (const tgt of consumers) {
         if (src === tgt) continue
+        if (!filteredIds.has(src) || !filteredIds.has(tgt)) continue
         const key = `${src}→${tgt}:${itemId}`
         if (edgeSet.has(key)) continue
         edgeSet.add(key)
@@ -92,8 +101,12 @@ export function buildProcessLevelGraph(processes: Process[], lang: Language): { 
   return { nodes, edges }
 }
 
-/** Build nodes/edges for a single process expanded to BP + Item level */
-export function buildDetailLevelGraph(process: Process, lang: Language): { nodes: Node[]; edges: Edge[] } {
+/** Build nodes/edges for a single process expanded to BP + Item level with edge type filter */
+export function buildDetailLevelGraph(
+  process: Process,
+  lang: Language,
+  activeEdgeTypes: Set<EdgeType>
+): { nodes: Node[]; edges: Edge[] } {
   const { bg, border } = processNodeColor(process.group)
   const nodes: Node[] = []
   const edges: Edge[] = []
@@ -106,15 +119,17 @@ export function buildDetailLevelGraph(process: Process, lang: Language): { nodes
     data: { label: process.id, name: t(process.name, lang), group: process.group, bg, border, isRoot: true },
   })
 
-  // Outcome nodes
-  process.outcomes.forEach((oc, i) => {
-    nodes.push({
-      id: oc.id,
-      type: 'outcomeNode',
-      position: { x: -320, y: i * 80 - (process.outcomes.length * 40) },
-      data: { label: oc.id, description: t(oc.description, lang) },
+  // Outcome nodes（supports エッジが有効な場合のみ表示）
+  if (activeEdgeTypes.has('supports')) {
+    process.outcomes.forEach((oc, i) => {
+      nodes.push({
+        id: oc.id,
+        type: 'outcomeNode',
+        position: { x: -320, y: i * 80 - (process.outcomes.length * 40) },
+        data: { label: oc.id, description: t(oc.description, lang) },
+      })
     })
-  })
+  }
 
   // BP nodes
   process.basePractices.forEach((bp, i) => {
@@ -127,73 +142,79 @@ export function buildDetailLevelGraph(process: Process, lang: Language): { nodes
     })
 
     // BP → supports Outcomes
-    bp.supportsOutcomes.forEach((ocId) => {
-      edges.push({
-        id: `${bp.id}→${ocId}`,
-        source: bp.id,
-        target: ocId,
-        type: 'smoothstep',
-        style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
-        label: lang === 'en' ? 'supports' : '達成',
-        labelStyle: { fill: '#818cf8', fontSize: 10 },
-        labelBgStyle: { fill: '#0f172a' },
+    if (activeEdgeTypes.has('supports')) {
+      bp.supportsOutcomes.forEach((ocId) => {
+        edges.push({
+          id: `${bp.id}→${ocId}`,
+          source: bp.id,
+          target: ocId,
+          type: 'smoothstep',
+          style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
+          label: lang === 'en' ? 'supports' : '達成',
+          labelStyle: { fill: '#818cf8', fontSize: 10 },
+          labelBgStyle: { fill: '#0f172a' },
+        })
       })
-    })
+    }
 
     // Output items
-    bp.outputs.forEach((ref) => {
-      const itemNodeId = `item-${ref.itemId}`
-      if (!nodes.find((n) => n.id === itemNodeId)) {
-        const item = process.outputItems.find((it) => it.id === ref.itemId)
-        nodes.push({
-          id: itemNodeId,
-          type: 'itemNode',
-          position: { x: 700, y: nodes.length * 70 - 200 },
-          data: {
-            label: ref.itemId,
-            name: item ? t(item.name, lang) : ref.itemId,
-            isOutput: true,
-          },
+    if (activeEdgeTypes.has('produces')) {
+      bp.outputs.forEach((ref) => {
+        const itemNodeId = `item-${ref.itemId}`
+        if (!nodes.find((n) => n.id === itemNodeId)) {
+          const item = process.outputItems.find((it) => it.id === ref.itemId)
+          nodes.push({
+            id: itemNodeId,
+            type: 'itemNode',
+            position: { x: 700, y: nodes.length * 70 - 200 },
+            data: {
+              label: ref.itemId,
+              name: item ? t(item.name, lang) : ref.itemId,
+              isOutput: true,
+            },
+          })
+        }
+        edges.push({
+          id: `${bp.id}→${itemNodeId}`,
+          source: bp.id,
+          target: itemNodeId,
+          type: 'smoothstep',
+          style: { stroke: '#22c55e', strokeWidth: 1.5 },
+          label: lang === 'en' ? 'produces' : '生成',
+          labelStyle: { fill: '#4ade80', fontSize: 10 },
+          labelBgStyle: { fill: '#0f172a' },
         })
-      }
-      edges.push({
-        id: `${bp.id}→${itemNodeId}`,
-        source: bp.id,
-        target: itemNodeId,
-        type: 'smoothstep',
-        style: { stroke: '#22c55e', strokeWidth: 1.5 },
-        label: lang === 'en' ? 'produces' : '生成',
-        labelStyle: { fill: '#4ade80', fontSize: 10 },
-        labelBgStyle: { fill: '#0f172a' },
       })
-    })
+    }
 
     // Input items
-    bp.inputs.forEach((ref) => {
-      const itemNodeId = `ext-${ref.itemId}`
-      if (!nodes.find((n) => n.id === itemNodeId)) {
-        nodes.push({
-          id: itemNodeId,
-          type: 'itemNode',
-          position: { x: -700, y: nodes.length * 70 - 200 },
-          data: {
-            label: ref.itemId,
-            name: ref.itemId,
-            isOutput: false,
-          },
+    if (activeEdgeTypes.has('input')) {
+      bp.inputs.forEach((ref) => {
+        const itemNodeId = `ext-${ref.itemId}`
+        if (!nodes.find((n) => n.id === itemNodeId)) {
+          nodes.push({
+            id: itemNodeId,
+            type: 'itemNode',
+            position: { x: -700, y: nodes.length * 70 - 200 },
+            data: {
+              label: ref.itemId,
+              name: ref.itemId,
+              isOutput: false,
+            },
+          })
+        }
+        edges.push({
+          id: `${itemNodeId}→${bp.id}`,
+          source: itemNodeId,
+          target: bp.id,
+          type: 'smoothstep',
+          style: { stroke: '#3b82f6', strokeWidth: 1.5 },
+          label: lang === 'en' ? 'input' : '入力',
+          labelStyle: { fill: '#60a5fa', fontSize: 10 },
+          labelBgStyle: { fill: '#0f172a' },
         })
-      }
-      edges.push({
-        id: `${itemNodeId}→${bp.id}`,
-        source: itemNodeId,
-        target: bp.id,
-        type: 'smoothstep',
-        style: { stroke: '#3b82f6', strokeWidth: 1.5 },
-        label: lang === 'en' ? 'input' : '入力',
-        labelStyle: { fill: '#60a5fa', fontSize: 10 },
-        labelBgStyle: { fill: '#0f172a' },
       })
-    })
+    }
   })
 
   return { nodes, edges }

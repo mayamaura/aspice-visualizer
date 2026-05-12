@@ -1,7 +1,7 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.0  
+**バージョン:** 1.1  
 **最終更新:** 2026-05-12  
 
 ---
@@ -75,6 +75,9 @@ AutomotiveSpiceVisualizer/
 │   │       ├── sup.ts        ← SUP.1, SUP.2, SUP.4, SUP.7, SUP.8, SUP.9, SUP.10
 │   │       └── acq_spl_reu.ts← ACQ.3/4/13/14, SPL.1/2, REU.2
 │   └── components/
+│       ├── common/
+│       │   ├── GroupFilterBar.tsx        ← グループフィルター（ProcessMap/Graph共用）
+│       │   └── EdgeTypeFilterBar.tsx     ← エッジ種別フィルター（Graph BP levelのみ）
 │       ├── ProcessMap/
 │       │   ├── ProcessMapView.tsx  ← プロセスマップ全体レイアウト
 │       │   ├── ProcessCard.tsx     ← プロセスカード1件
@@ -193,11 +196,16 @@ interface ProcessGroup_Meta {
 ```
 状態:
   selected: Process | null
+  activeGroups: Set<ProcessGroup>  （初期: 全8グループ）
 
 レンダリング:
-  左ペイン（flex-1）: PROCESS_GROUPS.map → グループカラム
+  <GroupFilterBar>（上部）
+  左ペイン（flex-1）: activeGroupsでフィルタしたグループのみ表示
                        → ProcessCard × n
   右ペイン（w-420px）: selected !== null → <DetailPanel>
+
+副作用:
+  activeGroupsから除外されたグループに属するselectedプロセスはnullリセット
 ```
 
 ### 4.3 ProcessCard
@@ -230,14 +238,23 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 状態:
   level: 'process' | 'bp'
   focusProcess: Process | null
+  activeGroups: Set<ProcessGroup>   （初期: 全8グループ）
+  activeEdgeTypes: Set<EdgeType>    （初期: supports / produces / input すべて）
 
 ロジック:
-  level==='process'  → buildProcessLevelGraph(ALL_PROCESSES, lang)
-  level==='bp'       → buildDetailLevelGraph(focusProcess, lang)
+  level==='process'  → buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
+  level==='bp'       → buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
+  nodes/edgesはuseMemoで導出し、ReactFlowのcontrolled propsとして渡す
+  （useNodesState/useEdgesStateは使用しない）
 
 イベント:
   onNodeClick (level==='process') → focusProcess=クリックプロセス, level='bp' に切替
   「戻る」ボタン → level='process', focusProcess=null
+
+レンダリング:
+  <GroupFilterBar>    （level==='process' 時のみ、上部）
+  ツールバー: レベルタブ / フォーカスプロセスバッジ / <EdgeTypeFilterBar>（level==='bp' 時のみ）
+  <ReactFlow>
 ```
 
 ### 4.6 CustomNodes（React Flowカスタムノード）
@@ -255,15 +272,40 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 
 ```typescript
 // プロセスレベルグラフ生成
-buildProcessLevelGraph(processes: Process[], lang: Language)
+buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>)
   → { nodes: Node[], edges: Edge[] }
+  // activeGroupsでフィルタしたプロセスのみノード化
   // エッジ: BPのinputs/outputsを突合して producerProcess → consumerProcess
+  // 両端点がactiveGroups内にあるエッジのみ描画
 
 // BP/情報項目レベルグラフ生成
-buildDetailLevelGraph(process: Process, lang: Language)
+buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<EdgeType>)
   → { nodes: Node[], edges: Edge[] }
-  // ノード: Process(root) / Outcome×n / BP×n / Item×n
-  // エッジ: BP→Outcome(supports) / BP→Item(produces) / Item→BP(input)
+  // ノード: Process(root) / Outcome×n（supportsがONの場合のみ） / BP×n / Item×n（対応エッジがONの場合のみ）
+  // エッジ: BP→Outcome(supports) / BP→Item(produces) / Item→BP(input) — activeEdgeTypesで個別ON/OFF
+```
+
+### 4.8 GroupFilterBar（共通コンポーネント）
+
+**責務:** プロセスグループの表示絞り込みトグルUI
+
+```typescript
+Props: { selected: Set<ProcessGroup>; lang: Language; onChange: (next: Set<ProcessGroup>) => void }
+// 「All」ボタン + グループごとのチップ
+// 最低1グループ選択を強制（最後の1つは削除不可）
+// ProcessMapView / RelationshipGraphView（process level）で共用
+```
+
+### 4.9 EdgeTypeFilterBar（共通コンポーネント）
+
+**責務:** エッジ種別の表示絞り込みトグルUI
+
+```typescript
+export type EdgeType = 'supports' | 'produces' | 'input'
+Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>) => void }
+// supports（indigo）/ produces（green）/ input（blue）の3種チップ
+// 最低1種別選択を強制
+// RelationshipGraphView（bp level）でのみ使用
 ```
 
 ---
