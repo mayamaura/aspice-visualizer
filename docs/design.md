@@ -1,7 +1,7 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.1  
+**バージョン:** 1.2  
 **最終更新:** 2026-05-12  
 
 ---
@@ -29,6 +29,7 @@
 | 言語 | TypeScript | 5.7.x |
 | ビルドツール | Vite | 6.x |
 | グラフ描画 | React Flow (reactflow) | 11.x |
+| グラフレイアウト | @dagrejs/dagre | 1.x |
 | スタイル | Tailwind CSS | 3.x |
 | アイコン | lucide-react | 0.469.x |
 | データ | 静的TypeScriptファイル | — |
@@ -271,18 +272,24 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 **責務:** ReactFlow用ノード/エッジ配列の生成
 
 ```typescript
+// Dagreレイアウト適用（内部ユーティリティ）
+applyDagreLayout(nodes, edges, options: { rankdir, ranksep, nodesep })
+  → Node[]  // position を Dagre 計算値で上書きして返す
+
 // プロセスレベルグラフ生成
 buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>)
   → { nodes: Node[], edges: Edge[] }
   // activeGroupsでフィルタしたプロセスのみノード化
   // エッジ: BPのinputs/outputsを突合して producerProcess → consumerProcess
   // 両端点がactiveGroups内にあるエッジのみ描画
+  // Dagre rankdir:LR で自動レイアウト
 
 // BP/情報項目レベルグラフ生成
 buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<EdgeType>)
   → { nodes: Node[], edges: Edge[] }
   // ノード: Process(root) / Outcome×n（supportsがONの場合のみ） / BP×n / Item×n（対応エッジがONの場合のみ）
   // エッジ: BP→Outcome(supports) / BP→Item(produces) / Item→BP(input) — activeEdgeTypesで個別ON/OFF
+  // Dagre rankdir:LR で自動レイアウト（入力→BP→出力の流れを視覚化）
 ```
 
 ### 4.8 GroupFilterBar（共通コンポーネント）
