@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-family: 'Inter', system-ui, sans-serif; }
+  body { @apply bg-gray-950 text-gray-100; }
+}
+
+/* React Flow overrides */
+.react-flow__background { background-color: #030712; }
