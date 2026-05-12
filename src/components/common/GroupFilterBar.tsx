@@ -12,24 +12,20 @@ interface Props {
 export function GroupFilterBar({ selected, lang, onChange }: Props) {
   const allSelected = selected.size === PROCESS_GROUPS.length
 
-  const toggle = (id: ProcessGroup) => {
-    const next = new Set(selected)
-    if (next.has(id)) {
-      // 最低1グループは残す
-      if (next.size === 1) return
-      next.delete(id)
+  const handleClick = (id: ProcessGroup, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+クリック: 追加・除外（最低1グループ必須）
+      const next = new Set(selected)
+      if (next.has(id)) {
+        if (next.size === 1) return
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      onChange(next)
     } else {
-      next.add(id)
-    }
-    onChange(next)
-  }
-
-  const toggleAll = () => {
-    if (allSelected) {
-      // 全選択 → 最初の1つだけ残す（全解除はUX的に不可）
-      onChange(new Set([PROCESS_GROUPS[0].id]))
-    } else {
-      onChange(new Set(PROCESS_GROUPS.map((g) => g.id)))
+      // 単独クリック: そのグループのみ選択
+      onChange(new Set([id]))
     }
   }
 
@@ -39,9 +35,9 @@ export function GroupFilterBar({ selected, lang, onChange }: Props) {
         {lang === 'en' ? 'Group:' : 'グループ:'}
       </span>
 
-      {/* All toggle */}
+      {/* All button */}
       <button
-        onClick={toggleAll}
+        onClick={() => onChange(new Set(PROCESS_GROUPS.map((g) => g.id)))}
         className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors shrink-0 ${
           allSelected
             ? 'bg-gray-600 border-gray-500 text-white'
@@ -59,13 +55,13 @@ export function GroupFilterBar({ selected, lang, onChange }: Props) {
         return (
           <button
             key={g.id}
-            onClick={() => toggle(g.id)}
+            onClick={(e) => handleClick(g.id, e)}
             className={`px-2 py-0.5 rounded text-xs font-mono font-bold border transition-all shrink-0 ${
               active
                 ? `${g.color} ${g.borderColor} ${g.textColor}`
                 : 'bg-transparent border-gray-800 text-gray-600 hover:border-gray-600 hover:text-gray-400'
             }`}
-            title={t(g.name, lang)}
+            title={`${t(g.name, lang)}${lang === 'en' ? ' (Ctrl+click to multi-select)' : ' (Ctrl+クリックで複数選択)'}`}
           >
             {g.id}
           </button>
