@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.3  
-**最終更新:** 2026-05-18  
+**バージョン:** 1.4  
+**最終更新:** 2026-05-19  
 
 ---
 
@@ -83,7 +83,8 @@ AutomotiveSpiceVisualizer/
 │       └── RelationshipGraph/
 │           ├── RelationshipGraphView.tsx ← グラフビュー全体
 │           ├── CustomNodes.tsx           ← React Flowカスタムノード
-│           └── graphUtils.ts             ← ノード/エッジ生成ロジック
+│           ├── graphUtils.ts             ← ノード/エッジ生成ロジック
+│           └── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
