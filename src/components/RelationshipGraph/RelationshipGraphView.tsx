@@ -19,6 +19,7 @@ import {
 import { ALL_PROCESSES } from '../../data'
 import { GroupFilterBar } from '../common/GroupFilterBar'
 import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
+import { ItemDetailPanel } from './ItemDetailPanel'
 import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
@@ -240,27 +241,32 @@ export function RelationshipGraphView({ lang }: Props) {
         )}
       </div>
 
-      {/* Graph */}
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodeClick={onNodeClick}
-          onNodeMouseEnter={onNodeMouseEnter}
-          onNodeMouseLeave={onNodeMouseLeave}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.1}
-          maxZoom={2}
-        >
-          <Background color="#1f2937" gap={20} />
-          <Controls />
-          <MiniMap
-            nodeColor={(n) => (n.data as { bg?: string }).bg ?? '#374151'}
-            style={{ background: '#111827' }}
-          />
-        </ReactFlow>
+      {/* Graph + Item Detail Panel */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodeClick={onNodeClick}
+            onNodeMouseEnter={onNodeMouseEnter}
+            onNodeMouseLeave={onNodeMouseLeave}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            minZoom={0.1}
+            maxZoom={2}
+          >
+            <Background color="#1f2937" gap={20} />
+            <Controls />
+            <MiniMap
+              nodeColor={(n) => (n.data as { bg?: string }).bg ?? '#374151'}
+              style={{ background: '#111827' }}
+            />
+          </ReactFlow>
+        </div>
+        {level === 'item' && focusItem && (
+          <ItemDetailPanel item={focusItem} lang={lang} onClose={handleBackToItemList} />
+        )}
       </div>
     </div>
   )
