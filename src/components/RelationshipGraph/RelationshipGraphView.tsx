@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 // nodes/edges are fully controlled via useMemo — no useNodesState/useEdgesState needed
 import ReactFlow, {
   Background,
@@ -37,6 +37,8 @@ export function RelationshipGraphView({ lang }: Props) {
   const [activeEdgeTypes, setActiveEdgeTypes] = useState<Set<EdgeType>>(
     new Set<EdgeType>(['supports', 'produces'])
   )
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {
     if (level === 'process') {
@@ -47,6 +49,40 @@ export function RelationshipGraphView({ lang }: Props) {
     return { nodes: [], edges: [] }
   }, [level, focusProcess, lang, activeGroups, activeEdgeTypes])
 
+  const { nodes, edges } = useMemo(() => {
+    if (!hoveredNodeId) return { nodes: initNodes, edges: initEdges }
+
+    const connectedEdges = initEdges.filter(
+      (e) => e.source === hoveredNodeId || e.target === hoveredNodeId
+    )
+    const connectedEdgeIds = new Set(connectedEdges.map((e) => e.id))
+    const connectedNodeIds = new Set<string>([hoveredNodeId])
+    connectedEdges.forEach((e) => {
+      connectedNodeIds.add(e.source)
+      connectedNodeIds.add(e.target)
+    })
+
+    return {
+      nodes: initNodes.map((n) => ({
+        ...n,
+        style: {
+          ...n.style,
+          opacity: connectedNodeIds.has(n.id) ? 1 : 0.08,
+          transition: 'opacity 0.15s',
+        },
+      })),
+      edges: initEdges.map((e) => {
+        const active = connectedEdgeIds.has(e.id)
+        return {
+          ...e,
+          style: { ...e.style, opacity: active ? 1 : 0.04, transition: 'opacity 0.15s' },
+          labelStyle: { ...e.labelStyle, opacity: active ? 1 : 0 },
+          labelBgStyle: { ...e.labelBgStyle, opacity: active ? 1 : 0 },
+        }
+      }),
+    }
+  }, [hoveredNodeId, initNodes, initEdges])
+
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
     if (level === 'process') {
       const p = ALL_PROCESSES.find((proc) => proc.id === node.id)
@@ -56,6 +92,22 @@ export function RelationshipGraphView({ lang }: Props) {
       }
     }
   }, [level])
+
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
+    if (level !== 'bp') return
+    if (hoverLeaveTimer.current !== null) {
+      clearTimeout(hoverLeaveTimer.current)
+      hoverLeaveTimer.current = null
+    }
+    setHoveredNodeId(node.id)
+  }, [level])
+
+  const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
+    hoverLeaveTimer.current = setTimeout(() => {
+      setHoveredNodeId(null)
+      hoverLeaveTimer.current = null
+    }, 80)
+  }, [])
 
   const handleBackToProcess = () => {
     setLevel('process')
@@ -134,9 +186,11 @@ export function RelationshipGraphView({ lang }: Props) {
       {/* Graph */}
       <div className="flex-1">
         <ReactFlow
-          nodes={initNodes}
-          edges={initEdges}
+          nodes={nodes}
+          edges={edges}
           onNodeClick={onNodeClick}
+          onNodeMouseEnter={onNodeMouseEnter}
+          onNodeMouseLeave={onNodeMouseLeave}
           nodeTypes={nodeTypes}
           fitView
           fitViewOptions={{ padding: 0.2 }}
