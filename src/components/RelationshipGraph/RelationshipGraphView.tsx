@@ -9,7 +9,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 
 import { ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
-import { buildProcessLevelGraph, buildDetailLevelGraph, type GraphLevel } from './graphUtils'
+import { buildProcessLevelGraph, buildDetailLevelGraph, buildAllProcessesDetailGraph, type GraphLevel } from './graphUtils'
 import { ALL_PROCESSES } from '../../data'
 import { GroupFilterBar } from '../common/GroupFilterBar'
 import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
@@ -43,6 +43,8 @@ export function RelationshipGraphView({ lang }: Props) {
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {
     if (level === 'process') {
       return buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
+    } else if (level === 'all') {
+      return buildAllProcessesDetailGraph(ALL_PROCESSES, lang, activeGroups, activeEdgeTypes)
     } else if (focusProcess) {
       return buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
     }
@@ -94,7 +96,7 @@ export function RelationshipGraphView({ lang }: Props) {
   }, [level])
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
-    if (level !== 'bp') return
+    if (level !== 'bp' && level !== 'all') return
     if (hoverLeaveTimer.current !== null) {
       clearTimeout(hoverLeaveTimer.current)
       hoverLeaveTimer.current = null
@@ -118,8 +120,8 @@ export function RelationshipGraphView({ lang }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Group filter (process level only) */}
-      {level === 'process' && (
+      {/* Group filter (process level and all level) */}
+      {(level === 'process' || level === 'all') && (
         <GroupFilterBar selected={activeGroups} lang={lang} onChange={setActiveGroups} />
       )}
 
@@ -147,6 +149,14 @@ export function RelationshipGraphView({ lang }: Props) {
           >
             {lang === 'en' ? 'BP / Item Level' : 'BP / 情報項目レベル'}
           </button>
+          <button
+            onClick={() => setLevel('all')}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-700 ${
+              level === 'all' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            }`}
+          >
+            {lang === 'en' ? 'All Processes' : '全プロセス一括'}
+          </button>
         </div>
 
         {/* Focus process badge */}
@@ -164,8 +174,8 @@ export function RelationshipGraphView({ lang }: Props) {
           </div>
         )}
 
-        {/* Edge type filter (BP level only) */}
-        {level === 'bp' && (
+        {/* Edge type filter (BP level and all level) */}
+        {(level === 'bp' || level === 'all') && (
           <div className="ml-auto">
             <EdgeTypeFilterBar
               selected={activeEdgeTypes}
@@ -179,6 +189,11 @@ export function RelationshipGraphView({ lang }: Props) {
         {level === 'process' && (
           <span className="ml-auto text-xs text-gray-500">
             {lang === 'en' ? 'Click a node to drill down' : 'ノードをクリックして展開'}
+          </span>
+        )}
+        {level === 'all' && (
+          <span className="text-xs text-gray-500">
+            {lang === 'en' ? 'Hover to highlight connections' : 'ホバーで接続を強調表示'}
           </span>
         )}
       </div>

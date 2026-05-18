@@ -6,7 +6,7 @@ import type { EdgeType } from '../common/EdgeTypeFilterBar'
 import { INFORMATION_ITEMS } from '../../data'
 import dagre from '@dagrejs/dagre'
 
-export type GraphLevel = 'process' | 'bp'
+export type GraphLevel = 'process' | 'bp' | 'all'
 
 const GROUP_COLOR: Record<string, string> = {
   SYS: '#1e3a5f',
@@ -234,5 +234,116 @@ export function buildDetailLevelGraph(
 
   const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 35 })
 
+  return { nodes: layoutNodes, edges }
+}
+
+/**
+ * 全プロセス一括BPレベルグラフ。
+ * フィルタされたすべてのプロセスの BP → Outcome → OutputItem を一画面に展開する。
+ * OutcomeノードIDはプロセスIDを含めてグローバルに一意にする。
+ * 情報項目ノードは重複排除して共有ノードとして表示する。
+ */
+export function buildAllProcessesDetailGraph(
+  processes: Process[],
+  lang: Language,
+  activeGroups: Set<ProcessGroup>,
+  activeEdgeTypes: Set<EdgeType>
+): { nodes: Node[]; edges: Edge[] } {
+  const filtered = processes.filter((p) => activeGroups.has(p.group))
+  const nodes: Node[] = []
+  const edges: Edge[] = []
+  const addedItemIds = new Set<string>()
+
+  const showSupports = activeEdgeTypes.has('supports')
+  const showProduces = activeEdgeTypes.has('produces')
+
+  filtered.forEach((process) => {
+    const { bg, border } = processNodeColor(process.group)
+
+    // Outcome ノード（プロセスIDを含めてグローバル一意）
+    if (showSupports || showProduces) {
+      process.outcomes.forEach((oc) => {
+        nodes.push({
+          id: `oc-${process.id}-${oc.id}`,
+          type: 'outcomeNode',
+          position: { x: 0, y: 0 },
+          data: { label: `${process.id}.${oc.id}`, description: t(oc.text, lang) },
+        })
+      })
+    }
+
+    // BP ノード + supports エッジ（BP → Outcome）
+    if (showSupports) {
+      process.base_practices.forEach((bp) => {
+        nodes.push({
+          id: bp.id,
+          type: 'bpNode',
+          position: { x: 0, y: 0 },
+          data: { label: bp.id, name: t(bp.name, lang), bg, border },
+        })
+        bp.outcome_refs.forEach((refId) => {
+          const ocNodeId = `oc-${process.id}-${refId}`
+          edges.push({
+            id: `${bp.id}→${ocNodeId}`,
+            source: bp.id,
+            target: ocNodeId,
+            type: 'default',
+            style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
+            label: lang === 'en' ? 'supports' : '達成',
+            labelStyle: { fill: '#818cf8', fontSize: 10 },
+            labelBgStyle: { fill: '#0f172a' },
+          })
+        })
+      })
+    }
+
+    // OutputItem ノード + produces エッジ（Outcome → OutputItem）
+    if (showProduces) {
+      process.output_information_items.forEach((poi) => {
+        const itemNodeId = `item-${poi.id}`
+        if (!addedItemIds.has(poi.id)) {
+          addedItemIds.add(poi.id)
+          const item = INFORMATION_ITEMS.find((it) => it.id === poi.id)
+          nodes.push({
+            id: itemNodeId,
+            type: 'itemNode',
+            position: { x: 0, y: 0 },
+            data: {
+              label: poi.id,
+              name: item ? t(item.name, lang) : poi.id,
+              isOutput: true,
+            },
+          })
+        }
+        poi.outcome_refs.forEach((refId) => {
+          const ocNodeId = `oc-${process.id}-${refId}`
+          // supports OFF 時は Outcome ノードが未生成なので追加する
+          if (!nodes.find((n) => n.id === ocNodeId)) {
+            const oc = process.outcomes.find((o) => o.id === refId)
+            nodes.push({
+              id: ocNodeId,
+              type: 'outcomeNode',
+              position: { x: 0, y: 0 },
+              data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
+            })
+          }
+          edges.push({
+            id: `oc-${process.id}-${refId}→${itemNodeId}`,
+            source: ocNodeId,
+            target: itemNodeId,
+            type: 'default',
+            style: { stroke: '#22c55e', strokeWidth: 1.5 },
+            label: lang === 'en' ? 'produces' : '生成',
+            labelStyle: { fill: '#4ade80', fontSize: 10 },
+            labelBgStyle: { fill: '#0f172a' },
+          })
+        })
+      })
+    }
+  })
+
+  if (nodes.length === 0) return { nodes, edges }
+
+  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 25 })
   return { nodes: layoutNodes, edges }
 }

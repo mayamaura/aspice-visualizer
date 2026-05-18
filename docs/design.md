@@ -215,7 +215,7 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 
 ```
 状態:
-  level: 'process' | 'bp'
+  level: 'process' | 'bp' | 'all'
   focusProcess: Process | null
   activeGroups: Set<ProcessGroup>   （初期: 全12グループ）
   activeEdgeTypes: Set<EdgeType>    （初期: supports / produces）
@@ -223,16 +223,19 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 ロジック:
   level==='process'  → buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
   level==='bp'       → buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
+  level==='all'      → buildAllProcessesDetailGraph(ALL_PROCESSES, lang, activeGroups, activeEdgeTypes)
   nodes/edgesはuseMemoで導出し、ReactFlowのcontrolled propsとして渡す
   （useNodesState/useEdgesStateは使用しない）
 
 イベント:
   onNodeClick (level==='process') → focusProcess=クリックプロセス, level='bp' に切替
   「戻る」ボタン → level='process', focusProcess=null
+  onNodeMouseEnter (level==='bp' || level==='all') → 接続ノード・エッジを強調
 
 レンダリング:
-  <GroupFilterBar>    （level==='process' 時のみ、上部）
-  ツールバー: レベルタブ / フォーカスプロセスバッジ / <EdgeTypeFilterBar>（level==='bp' 時のみ）
+  <GroupFilterBar>    （level==='process' || level==='all' 時、上部）
+  ツールバー: レベルタブ（3タブ）/ フォーカスプロセスバッジ（level==='bp' 時）
+             / <EdgeTypeFilterBar>（level==='bp' || level==='all' 時）
   <ReactFlow>
 ```
 
@@ -261,12 +264,20 @@ buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<P
   // エッジなし（ASPICE 4.0 はプロセス間の明示的接続を持たない）
   // Dagre rankdir:LR で自動レイアウト
 
-// BP/情報項目レベルグラフ生成
+// BP/情報項目レベルグラフ生成（単一プロセス）
 buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<EdgeType>)
   → { nodes: Node[], edges: Edge[] }
   // ノード: Process(root) / Outcome×n / BP×n（supports ON時）/ Item×n（produces ON時）
   // エッジ: BP→Outcome(supports, bp.outcome_refs) / Outcome→Item(produces, output_information_items[].outcome_refs)
   // Dagre rankdir:LR で自動レイアウト
+
+// 全プロセス一括BP/情報項目レベルグラフ生成
+buildAllProcessesDetailGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>, activeEdgeTypes: Set<EdgeType>)
+  → { nodes: Node[], edges: Edge[] }
+  // activeGroupsでフィルタした全プロセスをまとめて展開
+  // OutcomeノードIDは `oc-${process.id}-${oc.id}` でグローバル一意にする
+  // 情報項目ノードは重複排除（同一IDは1ノードに集約し、複数Outcomeから矢印が集まる）
+  // Dagre rankdir:LR で自動レイアウト（nodesep: 25）
 ```
 
 ### 4.8 GroupFilterBar（共通コンポーネント）
@@ -289,6 +300,7 @@ export type EdgeType = 'supports' | 'produces'
 Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>) => void }
 // supports（indigo）/ produces（green）の2種チップ
 // 最低1種別選択を強制
+// RelationshipGraphView の level==='bp' と level==='all' の両方で使用
 // RelationshipGraphView（bp level）でのみ使用
 ```
 
