@@ -178,7 +178,7 @@ export function buildDetailLevelGraph(
           id: `${bp.id}→${ocNodeId}`,
           source: bp.id,
           target: ocNodeId,
-          type: 'smoothstep',
+          type: 'default',
           style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
           label: lang === 'en' ? 'supports' : '達成',
           labelStyle: { fill: '#818cf8', fontSize: 10 },
@@ -222,7 +222,7 @@ export function buildDetailLevelGraph(
           id: `${ocNodeId}→${itemNodeId}`,
           source: ocNodeId,
           target: itemNodeId,
-          type: 'smoothstep',
+          type: 'default',
           style: { stroke: '#22c55e', strokeWidth: 1.5 },
           label: lang === 'en' ? 'produces' : '生成',
           labelStyle: { fill: '#4ade80', fontSize: 10 },
@@ -232,7 +232,7 @@ export function buildDetailLevelGraph(
     })
   }
 
-  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 130, nodesep: 35 })
+  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 35 })
 
   return { nodes: layoutNodes, edges }
 }
