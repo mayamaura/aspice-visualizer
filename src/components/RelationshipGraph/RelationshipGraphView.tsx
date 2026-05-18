@@ -9,13 +9,20 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 
 import { ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
-import { buildProcessLevelGraph, buildDetailLevelGraph, buildAllProcessesDetailGraph, type GraphLevel } from './graphUtils'
+import {
+  buildProcessLevelGraph,
+  buildDetailLevelGraph,
+  buildItemLevelGraph,
+  buildItemFocusGraph,
+  type GraphLevel,
+} from './graphUtils'
 import { ALL_PROCESSES } from '../../data'
 import { GroupFilterBar } from '../common/GroupFilterBar'
 import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
 import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
+import { INFORMATION_ITEMS } from '../../data'
 
 const nodeTypes = {
   processNode: ProcessNode,
@@ -31,6 +38,7 @@ interface Props {
 export function RelationshipGraphView({ lang }: Props) {
   const [level, setLevel] = useState<GraphLevel>('process')
   const [focusProcess, setFocusProcess] = useState<Process | null>(null)
+  const [focusItemId, setFocusItemId] = useState<string | null>(null)
   const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
@@ -43,13 +51,16 @@ export function RelationshipGraphView({ lang }: Props) {
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {
     if (level === 'process') {
       return buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
-    } else if (level === 'all') {
-      return buildAllProcessesDetailGraph(ALL_PROCESSES, lang, activeGroups, activeEdgeTypes)
-    } else if (focusProcess) {
+    } else if (level === 'bp' && focusProcess) {
       return buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
+    } else if (level === 'item') {
+      if (focusItemId) {
+        return buildItemFocusGraph(focusItemId, ALL_PROCESSES, lang)
+      }
+      return buildItemLevelGraph(ALL_PROCESSES, lang)
     }
     return { nodes: [], edges: [] }
-  }, [level, focusProcess, lang, activeGroups, activeEdgeTypes])
+  }, [level, focusProcess, focusItemId, lang, activeGroups, activeEdgeTypes])
 
   const { nodes, edges } = useMemo(() => {
     if (!hoveredNodeId) return { nodes: initNodes, edges: initEdges }
@@ -92,11 +103,15 @@ export function RelationshipGraphView({ lang }: Props) {
         setFocusProcess(p)
         setLevel('bp')
       }
+    } else if (level === 'item' && !focusItemId) {
+      // 情報項目一覧で情報項目ノードをクリック → 起点グラフへ
+      const itemId = node.id.replace(/^item-/, '')
+      setFocusItemId(itemId)
     }
-  }, [level])
+  }, [level, focusItemId])
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
-    if (level !== 'bp' && level !== 'all') return
+    if (level !== 'bp' && level !== 'item') return
     if (hoverLeaveTimer.current !== null) {
       clearTimeout(hoverLeaveTimer.current)
       hoverLeaveTimer.current = null
@@ -116,12 +131,17 @@ export function RelationshipGraphView({ lang }: Props) {
     setFocusProcess(null)
   }
 
+  const handleBackToItemList = () => {
+    setFocusItemId(null)
+  }
+
   const groupMeta = focusProcess ? PROCESS_GROUPS.find((g) => g.id === focusProcess.group) : null
+  const focusItem = focusItemId ? INFORMATION_ITEMS.find((i) => i.id === focusItemId) : null
 
   return (
     <div className="flex flex-col h-full">
-      {/* Group filter (process level and all level) */}
-      {(level === 'process' || level === 'all') && (
+      {/* Group filter (process level only) */}
+      {level === 'process' && (
         <GroupFilterBar selected={activeGroups} lang={lang} onChange={setActiveGroups} />
       )}
 
@@ -150,16 +170,16 @@ export function RelationshipGraphView({ lang }: Props) {
             {lang === 'en' ? 'BP / Item Level' : 'BP / 情報項目レベル'}
           </button>
           <button
-            onClick={() => setLevel('all')}
+            onClick={() => { setLevel('item'); setFocusItemId(null) }}
             className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-700 ${
-              level === 'all' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              level === 'item' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
             }`}
           >
-            {lang === 'en' ? 'All Processes' : '全プロセス一括'}
+            {lang === 'en' ? 'Item Origin' : '情報項目起点'}
           </button>
         </div>
 
-        {/* Focus process badge */}
+        {/* Focus process badge (BP level) */}
         {level === 'bp' && focusProcess && groupMeta && (
           <div className="flex items-center gap-2">
             <span className="text-gray-500 text-xs">→</span>
@@ -174,8 +194,25 @@ export function RelationshipGraphView({ lang }: Props) {
           </div>
         )}
 
-        {/* Edge type filter (BP level and all level) */}
-        {(level === 'bp' || level === 'all') && (
+        {/* Focus item badge (item origin level) */}
+        {level === 'item' && focusItemId && (
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 text-xs">→</span>
+            <span className="font-mono text-xs font-bold text-emerald-400">{focusItemId}</span>
+            <span className="text-xs text-gray-300">
+              {focusItem ? t(focusItem.name, lang) : focusItemId}
+            </span>
+            <button
+              onClick={handleBackToItemList}
+              className="ml-1 text-xs text-gray-500 hover:text-gray-200 underline"
+            >
+              {lang === 'en' ? 'Back' : '戻る'}
+            </button>
+          </div>
+        )}
+
+        {/* Edge type filter (BP level only) */}
+        {level === 'bp' && (
           <div className="ml-auto">
             <EdgeTypeFilterBar
               selected={activeEdgeTypes}
@@ -191,8 +228,13 @@ export function RelationshipGraphView({ lang }: Props) {
             {lang === 'en' ? 'Click a node to drill down' : 'ノードをクリックして展開'}
           </span>
         )}
-        {level === 'all' && (
-          <span className="text-xs text-gray-500">
+        {level === 'item' && !focusItemId && (
+          <span className="ml-auto text-xs text-gray-500">
+            {lang === 'en' ? 'Click an item to see its sources' : '情報項目をクリックして生成元を表示'}
+          </span>
+        )}
+        {level === 'item' && focusItemId && (
+          <span className="ml-auto text-xs text-gray-500">
             {lang === 'en' ? 'Hover to highlight connections' : 'ホバーで接続を強調表示'}
           </span>
         )}

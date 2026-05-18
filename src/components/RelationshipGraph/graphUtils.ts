@@ -6,7 +6,7 @@ import type { EdgeType } from '../common/EdgeTypeFilterBar'
 import { INFORMATION_ITEMS } from '../../data'
 import dagre from '@dagrejs/dagre'
 
-export type GraphLevel = 'process' | 'bp' | 'all'
+export type GraphLevel = 'process' | 'bp' | 'item'
 
 const GROUP_COLOR: Record<string, string> = {
   SYS: '#1e3a5f',
@@ -238,112 +238,111 @@ export function buildDetailLevelGraph(
 }
 
 /**
- * 全プロセス一括BPレベルグラフ。
- * フィルタされたすべてのプロセスの BP → Outcome → OutputItem を一画面に展開する。
- * OutcomeノードIDはプロセスIDを含めてグローバルに一意にする。
- * 情報項目ノードは重複排除して共有ノードとして表示する。
+ * 情報項目一覧グラフ。
+ * 全プロセスが出力する情報項目ノードを一覧表示する（クリックで起点グラフへ遷移）。
  */
-export function buildAllProcessesDetailGraph(
+export function buildItemLevelGraph(
   processes: Process[],
-  lang: Language,
-  activeGroups: Set<ProcessGroup>,
-  activeEdgeTypes: Set<EdgeType>
+  lang: Language
 ): { nodes: Node[]; edges: Edge[] } {
-  const filtered = processes.filter((p) => activeGroups.has(p.group))
+  const usedItemIds = new Set<string>()
+  processes.forEach((p) => p.output_information_items.forEach((poi) => usedItemIds.add(poi.id)))
+
   const nodes: Node[] = []
-  const edges: Edge[] = []
-  const addedItemIds = new Set<string>()
-
-  const showSupports = activeEdgeTypes.has('supports')
-  const showProduces = activeEdgeTypes.has('produces')
-
-  filtered.forEach((process) => {
-    const { bg, border } = processNodeColor(process.group)
-
-    // Outcome ノード（プロセスIDを含めてグローバル一意）
-    if (showSupports || showProduces) {
-      process.outcomes.forEach((oc) => {
-        nodes.push({
-          id: `oc-${process.id}-${oc.id}`,
-          type: 'outcomeNode',
-          position: { x: 0, y: 0 },
-          data: { label: `${process.id}.${oc.id}`, description: t(oc.text, lang) },
-        })
-      })
-    }
-
-    // BP ノード + supports エッジ（BP → Outcome）
-    if (showSupports) {
-      process.base_practices.forEach((bp) => {
-        nodes.push({
-          id: bp.id,
-          type: 'bpNode',
-          position: { x: 0, y: 0 },
-          data: { label: bp.id, name: t(bp.name, lang), bg, border },
-        })
-        bp.outcome_refs.forEach((refId) => {
-          const ocNodeId = `oc-${process.id}-${refId}`
-          edges.push({
-            id: `${bp.id}→${ocNodeId}`,
-            source: bp.id,
-            target: ocNodeId,
-            type: 'default',
-            style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
-            label: lang === 'en' ? 'supports' : '達成',
-            labelStyle: { fill: '#818cf8', fontSize: 10 },
-            labelBgStyle: { fill: '#0f172a' },
-          })
-        })
-      })
-    }
-
-    // OutputItem ノード + produces エッジ（Outcome → OutputItem）
-    if (showProduces) {
-      process.output_information_items.forEach((poi) => {
-        const itemNodeId = `item-${poi.id}`
-        if (!addedItemIds.has(poi.id)) {
-          addedItemIds.add(poi.id)
-          const item = INFORMATION_ITEMS.find((it) => it.id === poi.id)
-          nodes.push({
-            id: itemNodeId,
-            type: 'itemNode',
-            position: { x: 0, y: 0 },
-            data: {
-              label: poi.id,
-              name: item ? t(item.name, lang) : poi.id,
-              isOutput: true,
-            },
-          })
-        }
-        poi.outcome_refs.forEach((refId) => {
-          const ocNodeId = `oc-${process.id}-${refId}`
-          // supports OFF 時は Outcome ノードが未生成なので追加する
-          if (!nodes.find((n) => n.id === ocNodeId)) {
-            const oc = process.outcomes.find((o) => o.id === refId)
-            nodes.push({
-              id: ocNodeId,
-              type: 'outcomeNode',
-              position: { x: 0, y: 0 },
-              data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
-            })
-          }
-          edges.push({
-            id: `oc-${process.id}-${refId}→${itemNodeId}`,
-            source: ocNodeId,
-            target: itemNodeId,
-            type: 'default',
-            style: { stroke: '#22c55e', strokeWidth: 1.5 },
-            label: lang === 'en' ? 'produces' : '生成',
-            labelStyle: { fill: '#4ade80', fontSize: 10 },
-            labelBgStyle: { fill: '#0f172a' },
-          })
-        })
-      })
-    }
+  usedItemIds.forEach((id) => {
+    const item = INFORMATION_ITEMS.find((i) => i.id === id)
+    nodes.push({
+      id: `item-${id}`,
+      type: 'itemNode',
+      position: { x: 0, y: 0 },
+      data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
+    })
   })
 
-  if (nodes.length === 0) return { nodes, edges }
+  const layoutNodes = applyDagreLayout(nodes, [], { rankdir: 'LR', ranksep: 80, nodesep: 30 })
+  return { nodes: layoutNodes, edges: [] }
+}
 
-  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 25 })
+/**
+ * 情報項目起点グラフ。
+ * 選択した情報項目を右端に置き、それを生成する Outcome と Process を左側に逆引き展開する。
+ * 複数のプロセスが同じ情報項目を出力する場合はすべて表示される。
+ */
+export function buildItemFocusGraph(
+  itemId: string,
+  processes: Process[],
+  lang: Language
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = []
+  const edges: Edge[] = []
+
+  // 右端: 選択情報項目ノード
+  const item = INFORMATION_ITEMS.find((i) => i.id === itemId)
+  const itemNodeId = `item-${itemId}`
+  nodes.push({
+    id: itemNodeId,
+    type: 'itemNode',
+    position: { x: 0, y: 0 },
+    data: { label: itemId, name: item ? t(item.name, lang) : itemId, isOutput: true },
+  })
+
+  // 全プロセスを逆引き: この情報項目を出力しているプロセスを収集
+  processes.forEach((process) => {
+    const poi = process.output_information_items.find((p) => p.id === itemId)
+    if (!poi) return
+
+    const { bg, border } = processNodeColor(process.group)
+
+    // 左端: プロセスノード（重複なし）
+    if (!nodes.find((n) => n.id === process.id)) {
+      nodes.push({
+        id: process.id,
+        type: 'processNode',
+        position: { x: 0, y: 0 },
+        data: { label: process.id, name: t(process.name, lang), group: process.group, bg, border },
+      })
+    }
+
+    // 中央: Outcome ノード＋エッジ
+    poi.outcome_refs.forEach((refId) => {
+      const ocNodeId = `oc-${process.id}-${refId}`
+      const oc = process.outcomes.find((o) => o.id === refId)
+
+      if (!nodes.find((n) => n.id === ocNodeId)) {
+        nodes.push({
+          id: ocNodeId,
+          type: 'outcomeNode',
+          position: { x: 0, y: 0 },
+          data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
+        })
+      }
+
+      // Process → Outcome
+      const procToOcId = `${process.id}→${ocNodeId}`
+      if (!edges.find((e) => e.id === procToOcId)) {
+        edges.push({
+          id: procToOcId,
+          source: process.id,
+          target: ocNodeId,
+          type: 'default',
+          style: { stroke: '#6366f1', strokeWidth: 1.5 },
+        })
+      }
+
+      // Outcome → 情報項目
+      edges.push({
+        id: `${ocNodeId}→${itemNodeId}`,
+        source: ocNodeId,
+        target: itemNodeId,
+        type: 'default',
+        style: { stroke: '#22c55e', strokeWidth: 1.5 },
+        label: lang === 'en' ? 'produces' : '生成',
+        labelStyle: { fill: '#4ade80', fontSize: 10 },
+        labelBgStyle: { fill: '#0f172a' },
+      })
+    })
+  })
+
+  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 35 })
   return { nodes: layoutNodes, edges }
 }

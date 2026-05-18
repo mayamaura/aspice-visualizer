@@ -215,27 +215,32 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 
 ```
 状態:
-  level: 'process' | 'bp' | 'all'
+  level: 'process' | 'bp' | 'item'
   focusProcess: Process | null
+  focusItemId: string | null
   activeGroups: Set<ProcessGroup>   （初期: 全12グループ）
   activeEdgeTypes: Set<EdgeType>    （初期: supports / produces）
 
 ロジック:
-  level==='process'  → buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
-  level==='bp'       → buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
-  level==='all'      → buildAllProcessesDetailGraph(ALL_PROCESSES, lang, activeGroups, activeEdgeTypes)
+  level==='process'              → buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
+  level==='bp' && focusProcess   → buildDetailLevelGraph(focusProcess, lang, activeEdgeTypes)
+  level==='item' && focusItemId  → buildItemFocusGraph(focusItemId, ALL_PROCESSES, lang)
+  level==='item' && !focusItemId → buildItemLevelGraph(ALL_PROCESSES, lang)
   nodes/edgesはuseMemoで導出し、ReactFlowのcontrolled propsとして渡す
   （useNodesState/useEdgesStateは使用しない）
 
 イベント:
-  onNodeClick (level==='process') → focusProcess=クリックプロセス, level='bp' に切替
-  「戻る」ボタン → level='process', focusProcess=null
-  onNodeMouseEnter (level==='bp' || level==='all') → 接続ノード・エッジを強調
+  onNodeClick (level==='process')           → focusProcess=クリックプロセス, level='bp' に切替
+  onNodeClick (level==='item', !focusItemId) → focusItemId=クリック情報項目ID に設定
+  「戻る」ボタン（BP level）  → level='process', focusProcess=null
+  「戻る」ボタン（item level） → focusItemId=null（情報項目一覧に戻る）
+  onNodeMouseEnter (level==='bp' || level==='item') → 接続ノード・エッジを強調
 
 レンダリング:
-  <GroupFilterBar>    （level==='process' || level==='all' 時、上部）
+  <GroupFilterBar>    （level==='process' 時のみ、上部）
   ツールバー: レベルタブ（3タブ）/ フォーカスプロセスバッジ（level==='bp' 時）
-             / <EdgeTypeFilterBar>（level==='bp' || level==='all' 時）
+             / フォーカス情報項目バッジ（level==='item' && focusItemId 時）
+             / <EdgeTypeFilterBar>（level==='bp' 時のみ）
   <ReactFlow>
 ```
 
@@ -271,13 +276,23 @@ buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<Edg
   // エッジ: BP→Outcome(supports, bp.outcome_refs) / Outcome→Item(produces, output_information_items[].outcome_refs)
   // Dagre rankdir:LR で自動レイアウト
 
-// 全プロセス一括BP/情報項目レベルグラフ生成
-buildAllProcessesDetailGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>, activeEdgeTypes: Set<EdgeType>)
+// 情報項目一覧グラフ生成（情報項目起点レベルの初期画面）
+buildItemLevelGraph(processes: Process[], lang: Language)
   → { nodes: Node[], edges: Edge[] }
-  // activeGroupsでフィルタした全プロセスをまとめて展開
-  // OutcomeノードIDは `oc-${process.id}-${oc.id}` でグローバル一意にする
-  // 情報項目ノードは重複排除（同一IDは1ノードに集約し、複数Outcomeから矢印が集まる）
-  // Dagre rankdir:LR で自動レイアウト（nodesep: 25）
+  // 全プロセスの output_information_items から情報項目IDを収集（重複排除）
+  // 各情報項目を itemNode としてエッジなしで配置
+  // クリックで buildItemFocusGraph へ遷移
+  // Dagre rankdir:LR で自動レイアウト
+
+// 情報項目起点グラフ生成（選択した情報項目の生成元を逆引き）
+buildItemFocusGraph(itemId: string, processes: Process[], lang: Language)
+  → { nodes: Node[], edges: Edge[] }
+  // 右端: 選択情報項目ノード（itemNode）
+  // 中央: その情報項目を生成するOutcomeノード（`oc-${process.id}-${oc.id}` でグローバル一意）
+  // 左端: Outcomeを持つプロセスノード（プロセスグループ色）
+  // エッジ: Process → Outcome（無色実線）/ Outcome → 情報項目（produces、緑実線）
+  // 複数プロセスが同じ情報項目を出力する場合はすべて展開
+  // Dagre rankdir:LR で自動レイアウト
 ```
 
 ### 4.8 GroupFilterBar（共通コンポーネント）
@@ -300,7 +315,7 @@ export type EdgeType = 'supports' | 'produces'
 Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>) => void }
 // supports（indigo）/ produces（green）の2種チップ
 // 最低1種別選択を強制
-// RelationshipGraphView の level==='bp' と level==='all' の両方で使用
+// RelationshipGraphView の level==='bp' 時のみ使用
 // RelationshipGraphView（bp level）でのみ使用
 ```
 
