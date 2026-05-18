@@ -6,7 +6,7 @@ import type { EdgeType } from '../common/EdgeTypeFilterBar'
 import { INFORMATION_ITEMS } from '../../data'
 import dagre from '@dagrejs/dagre'
 
-export type GraphLevel = 'process' | 'bp'
+export type GraphLevel = 'process' | 'bp' | 'item'
 
 const GROUP_COLOR: Record<string, string> = {
   SYS: '#1e3a5f',
@@ -234,5 +234,115 @@ export function buildDetailLevelGraph(
 
   const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 35 })
 
+  return { nodes: layoutNodes, edges }
+}
+
+/**
+ * 情報項目一覧グラフ。
+ * 全プロセスが出力する情報項目ノードを一覧表示する（クリックで起点グラフへ遷移）。
+ */
+export function buildItemLevelGraph(
+  processes: Process[],
+  lang: Language
+): { nodes: Node[]; edges: Edge[] } {
+  const usedItemIds = new Set<string>()
+  processes.forEach((p) => p.output_information_items.forEach((poi) => usedItemIds.add(poi.id)))
+
+  const nodes: Node[] = []
+  usedItemIds.forEach((id) => {
+    const item = INFORMATION_ITEMS.find((i) => i.id === id)
+    nodes.push({
+      id: `item-${id}`,
+      type: 'itemNode',
+      position: { x: 0, y: 0 },
+      data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
+    })
+  })
+
+  const layoutNodes = applyDagreLayout(nodes, [], { rankdir: 'LR', ranksep: 80, nodesep: 30 })
+  return { nodes: layoutNodes, edges: [] }
+}
+
+/**
+ * 情報項目起点グラフ。
+ * 選択した情報項目を右端に置き、それを生成する Outcome と Process を左側に逆引き展開する。
+ * 複数のプロセスが同じ情報項目を出力する場合はすべて表示される。
+ */
+export function buildItemFocusGraph(
+  itemId: string,
+  processes: Process[],
+  lang: Language
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = []
+  const edges: Edge[] = []
+
+  // 右端: 選択情報項目ノード
+  const item = INFORMATION_ITEMS.find((i) => i.id === itemId)
+  const itemNodeId = `item-${itemId}`
+  nodes.push({
+    id: itemNodeId,
+    type: 'itemNode',
+    position: { x: 0, y: 0 },
+    data: { label: itemId, name: item ? t(item.name, lang) : itemId, isOutput: true },
+  })
+
+  // 全プロセスを逆引き: この情報項目を出力しているプロセスを収集
+  processes.forEach((process) => {
+    const poi = process.output_information_items.find((p) => p.id === itemId)
+    if (!poi) return
+
+    const { bg, border } = processNodeColor(process.group)
+
+    // 左端: プロセスノード（重複なし）
+    if (!nodes.find((n) => n.id === process.id)) {
+      nodes.push({
+        id: process.id,
+        type: 'processNode',
+        position: { x: 0, y: 0 },
+        data: { label: process.id, name: t(process.name, lang), group: process.group, bg, border },
+      })
+    }
+
+    // 中央: Outcome ノード＋エッジ
+    poi.outcome_refs.forEach((refId) => {
+      const ocNodeId = `oc-${process.id}-${refId}`
+      const oc = process.outcomes.find((o) => o.id === refId)
+
+      if (!nodes.find((n) => n.id === ocNodeId)) {
+        nodes.push({
+          id: ocNodeId,
+          type: 'outcomeNode',
+          position: { x: 0, y: 0 },
+          data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
+        })
+      }
+
+      // Process → Outcome
+      const procToOcId = `${process.id}→${ocNodeId}`
+      if (!edges.find((e) => e.id === procToOcId)) {
+        edges.push({
+          id: procToOcId,
+          source: process.id,
+          target: ocNodeId,
+          type: 'default',
+          style: { stroke: '#6366f1', strokeWidth: 1.5 },
+        })
+      }
+
+      // Outcome → 情報項目
+      edges.push({
+        id: `${ocNodeId}→${itemNodeId}`,
+        source: ocNodeId,
+        target: itemNodeId,
+        type: 'default',
+        style: { stroke: '#22c55e', strokeWidth: 1.5 },
+        label: lang === 'en' ? 'produces' : '生成',
+        labelStyle: { fill: '#4ade80', fontSize: 10 },
+        labelBgStyle: { fill: '#0f172a' },
+      })
+    })
+  })
+
+  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 260, nodesep: 35 })
   return { nodes: layoutNodes, edges }
 }
