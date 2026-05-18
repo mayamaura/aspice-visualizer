@@ -23,6 +23,20 @@ export const PROCESS_GROUPS: ProcessGroup_Meta[] = [
     borderColor: 'border-cyan-600',
   },
   {
+    id: 'VAL',
+    name: { en: 'Validation', ja: 'バリデーション' },
+    color: 'bg-lime-900',
+    textColor: 'text-lime-200',
+    borderColor: 'border-lime-600',
+  },
+  {
+    id: 'MLE',
+    name: { en: 'Machine Learning Engineering', ja: '機械学習エンジニアリング' },
+    color: 'bg-purple-900',
+    textColor: 'text-purple-200',
+    borderColor: 'border-purple-600',
+  },
+  {
     id: 'MAN',
     name: { en: 'Management', ja: 'マネジメント' },
     color: 'bg-amber-900',
@@ -35,6 +49,13 @@ export const PROCESS_GROUPS: ProcessGroup_Meta[] = [
     color: 'bg-green-900',
     textColor: 'text-green-200',
     borderColor: 'border-green-600',
+  },
+  {
+    id: 'PIM',
+    name: { en: 'Process Improvement', ja: 'プロセス改善' },
+    color: 'bg-yellow-900',
+    textColor: 'text-yellow-200',
+    borderColor: 'border-yellow-600',
   },
   {
     id: 'ACQ',
@@ -56,5 +77,12 @@ export const PROCESS_GROUPS: ProcessGroup_Meta[] = [
     color: 'bg-teal-900',
     textColor: 'text-teal-200',
     borderColor: 'border-teal-600',
+  },
+  {
+    id: 'SEC',
+    name: { en: 'Security', ja: 'セキュリティ' },
+    color: 'bg-red-900',
+    textColor: 'text-red-200',
+    borderColor: 'border-red-600',
   },
 ]

@@ -35,7 +35,7 @@ export function RelationshipGraphView({ lang }: Props) {
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
   const [activeEdgeTypes, setActiveEdgeTypes] = useState<Set<EdgeType>>(
-    new Set<EdgeType>(['supports', 'produces', 'input'])
+    new Set<EdgeType>(['supports', 'produces'])
   )
 
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {

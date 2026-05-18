@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.2  
-**最終更新:** 2026-05-12  
+**バージョン:** 1.3  
+**最終更新:** 2026-05-18  
 
 ---
 
@@ -32,14 +32,14 @@
 | グラフレイアウト | @dagrejs/dagre | 1.x |
 | スタイル | Tailwind CSS | 3.x |
 | アイコン | lucide-react | 0.469.x |
-| データ | 静的TypeScriptファイル | — |
+| データ | aspice_models.json（静的JSON） | — |
 
 ### 1.3 データフロー
 
 ```
-src/data/ (静的TSデータ)
-    ↓ import
-src/data/index.ts (ALL_PROCESSES, PROCESS_GROUPS)
+src/data/aspice_models.json  ← 唯一のデータソース（差し替えで更新）
+    ↓ import (via aspiceLoader.ts)
+src/data/index.ts (ALL_PROCESSES, INFORMATION_ITEMS, PROCESS_GROUPS)
     ↓ props / direct import
 Components (ProcessMapView, RelationshipGraphView)
     ↓ t(text, lang)
@@ -55,6 +55,7 @@ UI表示 (EN / JA)
 ```
 AutomotiveSpiceVisualizer/
 ├── docs/
+│   ├── data_reference.md     ← aspice_models.json スキーマ説明書
 │   ├── requirements.md       ← 要求仕様書（本ドキュメントと対）
 │   └── design.md             ← 本ドキュメント
 ├── src/
@@ -62,19 +63,15 @@ AutomotiveSpiceVisualizer/
 │   ├── App.tsx               ← ルートコンポーネント
 │   ├── index.css             ← グローバルCSS (Tailwind + React Flow)
 │   ├── types/
-│   │   └── aspice.ts         ← 全型定義
+│   │   ├── aspice.ts         ← アプリ内部型定義（コンポーネントが参照）
+│   │   └── aspiceRaw.ts      ← JSON Raw型定義（aspice_models.json スキーマに忠実）
 │   ├── store/
 │   │   └── languageStore.ts  ← 言語切替グローバル状態
 │   ├── data/
-│   │   ├── index.ts          ← 全プロセス集約エクスポート
-│   │   ├── processGroups.ts  ← プロセスグループメタ情報
-│   │   └── processes/
-│   │       ├── sys.ts        ← SYS.1〜5
-│   │       ├── swe.ts        ← SWE.1〜6
-│   │       ├── hwe.ts        ← HWE.1〜5
-│   │       ├── man.ts        ← MAN.3, MAN.5, MAN.6
-│   │       ├── sup.ts        ← SUP.1, SUP.2, SUP.4, SUP.7, SUP.8, SUP.9, SUP.10
-│   │       └── acq_spl_reu.ts← ACQ.3/4/13/14, SPL.1/2, REU.2
+│   │   ├── aspice_models.json← 唯一のデータソース（差し替えで更新）
+│   │   ├── aspiceLoader.ts   ← JSON → 内部型への変換（JSON更新時の単一修正点）
+│   │   ├── index.ts          ← ALL_PROCESSES / INFORMATION_ITEMS / PROCESS_GROUPS を re-export
+│   │   └── processGroups.ts  ← プロセスグループUIメタ情報（12グループ）
 │   └── components/
 │       ├── common/
 │       │   ├── GroupFilterBar.tsx        ← グループフィルター（ProcessMap/Graph共用）
@@ -94,81 +91,62 @@ AutomotiveSpiceVisualizer/
 └── package.json
 ```
 
+### JSONデータ更新フロー
+
+```
+1. src/data/aspice_models.json を新ファイルで上書き
+2. npm run type-check でエラー確認
+3. スキーマ変更があれば src/types/aspiceRaw.ts と src/data/aspiceLoader.ts のみ修正
+4. コンポーネント・他ファイルは変更不要
+```
+
 ---
 
 ## 3. データモデル
 
 ### 3.1 型定義 (`src/types/aspice.ts`)
 
+アプリ内部で使用する安定した型定義。JSON スキーマの変更があっても、aspiceLoader.ts を介して隔離される。
+
 ```typescript
-// 対応言語
 type Language = 'en' | 'ja'
+interface BilingualText { en: string; ja: string }
+type ProcessGroup = 'SYS' | 'SWE' | 'HWE' | 'VAL' | 'MLE' | 'MAN' | 'SUP' | 'PIM' | 'ACQ' | 'SPL' | 'REU' | 'SEC'
 
-// 二言語テキスト（全データフィールドで使用）
-interface BilingualText {
-  en: string
-  ja: string
-}
-
-// プロセスグループ識別子
-type ProcessGroup = 'SYS' | 'SWE' | 'HWE' | 'MAN' | 'SUP' | 'ACQ' | 'SPL' | 'REU'
-
-// アウトプット情報項目
-interface InformationItem {
-  id: string              // ASPICE標準ID (例: "17-08") またはプロジェクト固有ID
-  name: BilingualText
-  characteristics: BilingualText[]
-}
-
-// 情報項目参照（BP内の入出力参照）
-interface InformationItemRef {
-  itemId: string          // InformationItem.id への参照
-  note?: BilingualText
-}
-
-// 基本プラクティス
+interface Note { id: number; text: BilingualText }
+interface Outcome { id: number; text: BilingualText }
 interface BasePractice {
-  id: string              // 例: "SWE.1.BP1"
-  name: BilingualText
-  description: BilingualText
-  supportsOutcomes: string[]     // Outcome.id の配列
-  outputs: InformationItemRef[]  // このBPが生成する情報項目
-  inputs: InformationItemRef[]   // このBPが入力として使う情報項目
+  id: string; name: BilingualText; description: BilingualText
+  notes: Note[]; outcome_refs: number[]
 }
+interface ProcessOutputItem { id: string; outcome_refs: number[] }
+interface Characteristic { type: 'bullet' | 'category' | 'note'; en: string; ja?: string }
+interface InformationItem { id: string; name: BilingualText; description?: BilingualText; characteristics: Characteristic[] }
 
-// プロセス成果
-interface Outcome {
-  id: string              // 例: "SWE.1.1"
-  description: BilingualText
-}
-
-// プロセス（最上位エンティティ）
 interface Process {
-  id: string              // 例: "SWE.1"
-  name: BilingualText
-  group: ProcessGroup
-  purpose: BilingualText
-  outcomes: Outcome[]
-  basePractices: BasePractice[]
-  outputItems: InformationItem[]
+  id: string; name: BilingualText; group: ProcessGroup; purpose: BilingualText
+  outcomes: Outcome[]; base_practices: BasePractice[]
+  output_information_items: ProcessOutputItem[]
 }
+interface ProcessGroup_Meta { id: ProcessGroup; name: BilingualText; color: string; textColor: string; borderColor: string }
 
-// プロセスグループのUI表示メタ情報
-interface ProcessGroup_Meta {
-  id: ProcessGroup
-  name: BilingualText
-  color: string           // Tailwind bg color class
-  textColor: string
-  borderColor: string
-}
+// 能力次元（型定義のみ — UI未実装、将来の拡張候補）
+interface CapabilityLevel { level: number; name?: BilingualText; process_attributes: ProcessAttribute[] }
 ```
 
 ### 3.2 情報項目IDの命名規則
 
 | パターン | 意味 | 例 |
 |---|---|---|
-| `NN-NN`（数字-数字） | ASPICE標準情報項目ID | `17-08`, `04-06` |
-| `GRP-NN-NN` | グループ固有拡張ID | `HWE-17-01`, `MAN-08-01` |
+| `NN-NN`（数字-数字） | ASPICE標準情報項目ID（Annex B） | `17-08`, `04-06` |
+
+### 3.3 Characteristic の種別
+
+| type | 意味 | 表示 |
+|---|---|---|
+| `bullet` | 箇条書き項目（`\n-` でサブ項目を含む場合あり） | `•` 表示、サブ項目はインデント |
+| `category` | セクション見出し（後続のbulletを分類） | bold 小見出し |
+| `note` | 備考（NOTE: で始まる補足説明） | italic / 灰色 |
 
 ---
 
@@ -239,8 +217,8 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 状態:
   level: 'process' | 'bp'
   focusProcess: Process | null
-  activeGroups: Set<ProcessGroup>   （初期: 全8グループ）
-  activeEdgeTypes: Set<EdgeType>    （初期: supports / produces / input すべて）
+  activeGroups: Set<ProcessGroup>   （初期: 全12グループ）
+  activeEdgeTypes: Set<EdgeType>    （初期: supports / produces）
 
 ロジック:
   level==='process'  → buildProcessLevelGraph(ALL_PROCESSES, lang, activeGroups)
@@ -280,16 +258,15 @@ applyDagreLayout(nodes, edges, options: { rankdir, ranksep, nodesep })
 buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>)
   → { nodes: Node[], edges: Edge[] }
   // activeGroupsでフィルタしたプロセスのみノード化
-  // エッジ: BPのinputs/outputsを突合して producerProcess → consumerProcess
-  // 両端点がactiveGroups内にあるエッジのみ描画
+  // エッジなし（ASPICE 4.0 はプロセス間の明示的接続を持たない）
   // Dagre rankdir:LR で自動レイアウト
 
 // BP/情報項目レベルグラフ生成
 buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<EdgeType>)
   → { nodes: Node[], edges: Edge[] }
-  // ノード: Process(root) / Outcome×n（supportsがONの場合のみ） / BP×n / Item×n（対応エッジがONの場合のみ）
-  // エッジ: BP→Outcome(supports) / BP→Item(produces) / Item→BP(input) — activeEdgeTypesで個別ON/OFF
-  // Dagre rankdir:LR で自動レイアウト（入力→BP→出力の流れを視覚化）
+  // ノード: Process(root) / Outcome×n / BP×n（supports ON時）/ Item×n（produces ON時）
+  // エッジ: BP→Outcome(supports, bp.outcome_refs) / Outcome→Item(produces, output_information_items[].outcome_refs)
+  // Dagre rankdir:LR で自動レイアウト
 ```
 
 ### 4.8 GroupFilterBar（共通コンポーネント）
@@ -308,9 +285,9 @@ Props: { selected: Set<ProcessGroup>; lang: Language; onChange: (next: Set<Proce
 **責務:** エッジ種別の表示絞り込みトグルUI
 
 ```typescript
-export type EdgeType = 'supports' | 'produces' | 'input'
+export type EdgeType = 'supports' | 'produces'
 Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>) => void }
-// supports（indigo）/ produces（green）/ input（blue）の3種チップ
+// supports（indigo）/ produces（green）の2種チップ
 // 最低1種別選択を強制
 // RelationshipGraphView（bp level）でのみ使用
 ```
@@ -334,11 +311,15 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 | SYS | blue-900 | blue-600 | blue-200 |
 | SWE | violet-900 | violet-600 | violet-200 |
 | HWE | cyan-900 | cyan-600 | cyan-200 |
+| VAL | lime-900 | lime-600 | lime-200 |
+| MLE | purple-900 | purple-600 | purple-200 |
 | MAN | amber-900 | amber-600 | amber-200 |
 | SUP | green-900 | green-600 | green-200 |
+| PIM | yellow-900 | yellow-600 | yellow-200 |
 | ACQ | orange-900 | orange-600 | orange-200 |
 | SPL | rose-900 | rose-600 | rose-200 |
 | REU | teal-900 | teal-600 | teal-200 |
+| SEC | red-900 | red-600 | red-200 |
 
 ### 6.2 グラフノードカラー（React Flow）
 
@@ -354,10 +335,8 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 
 | エッジ種別 | ストローク | スタイル |
 |---|---|---|
-| プロセス間フロー | #4b5563 (gray-600) | solid |
 | BP → Outcome (supports) | #6366f1 (indigo-500) | dashed |
-| BP → Item (produces) | #22c55e (green-500) | solid |
-| Item → BP (input) | #3b82f6 (blue-500) | solid |
+| Outcome → Item (produces) | #22c55e (green-500) | solid |
 
 ---
 
@@ -370,14 +349,15 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 3. `<main>` の条件レンダリングに追加
 4. `docs/requirements.md` § 2 に機能要件追加、`docs/design.md` § 4 にコンポーネント設計追加
 
-### 7.2 新プロセスデータ追加
+### 7.2 プロセスデータ更新
 
-1. `src/data/processes/` 以下の対応ファイルを編集
-2. `src/data/index.ts` のエクスポートを更新（新ファイルの場合）
-3. `docs/requirements.md` § 4.1 のプロセス一覧を更新
+1. `src/data/aspice_models.json` を新ファイルで上書き
+2. `npm run type-check` を実行しエラーを確認
+3. スキーマ変更がある場合のみ `src/types/aspiceRaw.ts` と `src/data/aspiceLoader.ts` を修正
+4. `docs/requirements.md` § 4.1 の件数を更新
 
 ### 7.3 データモデル変更
 
-1. `src/types/aspice.ts` を変更
-2. 影響するデータファイル・コンポーネントを更新
+1. `src/types/aspice.ts`（内部型）を変更
+2. 影響するコンポーネントを更新
 3. `docs/design.md` § 3 のデータモデルを更新

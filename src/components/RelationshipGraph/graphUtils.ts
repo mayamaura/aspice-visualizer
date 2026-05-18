@@ -3,6 +3,7 @@ import type { Process, ProcessGroup } from '../../types/aspice'
 import type { Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import type { EdgeType } from '../common/EdgeTypeFilterBar'
+import { INFORMATION_ITEMS } from '../../data'
 import dagre from '@dagrejs/dagre'
 
 export type GraphLevel = 'process' | 'bp'
@@ -11,37 +12,43 @@ const GROUP_COLOR: Record<string, string> = {
   SYS: '#1e3a5f',
   SWE: '#2d1b69',
   HWE: '#0e4f5c',
+  VAL: '#1a3a1a',
+  MLE: '#2d1b5a',
   MAN: '#4a3500',
   SUP: '#0f3d1f',
+  PIM: '#3d3a00',
   ACQ: '#4a2000',
   SPL: '#4a1020',
   REU: '#0f3d3d',
+  SEC: '#4a1010',
 }
 
 const GROUP_BORDER: Record<string, string> = {
   SYS: '#2563eb',
   SWE: '#7c3aed',
   HWE: '#0891b2',
+  VAL: '#65a30d',
+  MLE: '#7e22ce',
   MAN: '#d97706',
   SUP: '#16a34a',
+  PIM: '#ca8a04',
   ACQ: '#ea580c',
   SPL: '#e11d48',
   REU: '#0d9488',
+  SEC: '#dc2626',
 }
 
-// ノード種別ごとのサイズ（Dagre に渡す）
 const NODE_SIZE: Record<string, { width: number; height: number }> = {
   processNode: { width: 175, height: 65 },
-  outcomeNode: { width: 155, height: 55 },
-  bpNode:      { width: 175, height: 55 },
-  itemNode:    { width: 145, height: 50 },
+  outcomeNode:  { width: 155, height: 55 },
+  bpNode:       { width: 175, height: 55 },
+  itemNode:     { width: 145, height: 50 },
 }
 
 function processNodeColor(group: string) {
   return { bg: GROUP_COLOR[group] ?? '#1f2937', border: GROUP_BORDER[group] ?? '#4b5563' }
 }
 
-/** Dagre でノード配置を計算して position を上書きする */
 function applyDagreLayout(
   nodes: Node[],
   edges: Edge[],
@@ -81,76 +88,47 @@ function applyDagreLayout(
   })
 }
 
-/** プロセスレベルグラフ（グループフィルター付き） */
+/**
+ * プロセスレベルグラフ。
+ * ASPICE 4.0 にはプロセス間の明示的な接続が存在しないため、
+ * エッジなしでプロセスノードをグループ別に配置する。
+ */
 export function buildProcessLevelGraph(
   processes: Process[],
   lang: Language,
   activeGroups: Set<ProcessGroup>
 ): { nodes: Node[]; edges: Edge[] } {
   const filtered = processes.filter((p) => activeGroups.has(p.group))
-  const filteredIds = new Set(filtered.map((p) => p.id))
 
   const nodes: Node[] = filtered.map((p) => {
     const { bg, border } = processNodeColor(p.group)
     return {
       id: p.id,
       type: 'processNode',
-      position: { x: 0, y: 0 }, // Dagre が上書き
-      data: { label: p.id, name: t(p.name, lang), group: p.group, bg, border },
+      position: { x: 0, y: 0 },
+      data: {
+        label: p.id,
+        name: t(p.name, lang),
+        group: p.group,
+        bg,
+        border,
+        outputCount: p.output_information_items.length,
+      },
     }
   })
 
-  const itemProducers: Record<string, string[]> = {}
-  const itemConsumers: Record<string, string[]> = {}
+  const layoutNodes = applyDagreLayout(nodes, [], { rankdir: 'LR', ranksep: 120, nodesep: 40 })
 
-  for (const p of filtered) {
-    for (const bp of p.basePractices) {
-      for (const ref of bp.outputs) {
-        if (!itemProducers[ref.itemId]) itemProducers[ref.itemId] = []
-        if (!itemProducers[ref.itemId].includes(p.id)) itemProducers[ref.itemId].push(p.id)
-      }
-      for (const ref of bp.inputs) {
-        if (!itemConsumers[ref.itemId]) itemConsumers[ref.itemId] = []
-        if (!itemConsumers[ref.itemId].includes(p.id)) itemConsumers[ref.itemId].push(p.id)
-      }
-    }
-  }
-
-  const edgeSet = new Set<string>()
-  const edges: Edge[] = []
-
-  for (const [itemId, producers] of Object.entries(itemProducers)) {
-    const consumers = itemConsumers[itemId] ?? []
-    for (const src of producers) {
-      for (const tgt of consumers) {
-        if (src === tgt) continue
-        if (!filteredIds.has(src) || !filteredIds.has(tgt)) continue
-        const key = `${src}→${tgt}:${itemId}`
-        if (edgeSet.has(key)) continue
-        edgeSet.add(key)
-        edges.push({
-          id: key,
-          source: src,
-          target: tgt,
-          label: itemId,
-          type: 'smoothstep',
-          animated: false,
-          style: { stroke: '#4b5563', strokeWidth: 1.5 },
-          labelStyle: { fill: '#9ca3af', fontSize: 10 },
-          labelBgStyle: { fill: '#111827' },
-        })
-      }
-    }
-  }
-
-  // エッジのないノードはグリッド配置にフォールバックするため
-  // Dagre に孤立ノードも含めて渡す（Dagre は孤立ノードも配置できる）
-  const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 120, nodesep: 40 })
-
-  return { nodes: layoutNodes, edges }
+  return { nodes: layoutNodes, edges: [] }
 }
 
-/** BPレベルグラフ（エッジ種別フィルター付き） */
+/**
+ * BPレベルグラフ（単一プロセスの詳細）。
+ *
+ * エッジ構成（ASPICE 4.0 対応）:
+ *   supports: BP → Outcome  （bp.outcome_refs から構築）
+ *   produces: Outcome → OutputItem  （output_information_items[].outcome_refs から構築）
+ */
 export function buildDetailLevelGraph(
   process: Process,
   lang: Language,
@@ -168,34 +146,38 @@ export function buildDetailLevelGraph(
     data: { label: process.id, name: t(process.name, lang), group: process.group, bg, border, isRoot: true },
   })
 
-  // アウトカムノード（supports が有効な場合のみ）
-  if (activeEdgeTypes.has('supports')) {
+  const showSupports = activeEdgeTypes.has('supports')
+  const showProduces = activeEdgeTypes.has('produces')
+
+  // Outcome ノード（supports または produces が有効なら表示）
+  if (showSupports || showProduces) {
     process.outcomes.forEach((oc) => {
+      const ocNodeId = `oc-${oc.id}`
       nodes.push({
-        id: oc.id,
+        id: ocNodeId,
         type: 'outcomeNode',
         position: { x: 0, y: 0 },
-        data: { label: oc.id, description: t(oc.description, lang) },
+        data: { label: `${process.id}.${oc.id}`, description: t(oc.text, lang) },
       })
     })
   }
 
-  // BPノード
-  process.basePractices.forEach((bp) => {
-    nodes.push({
-      id: bp.id,
-      type: 'bpNode',
-      position: { x: 0, y: 0 },
-      data: { label: bp.id, name: t(bp.name, lang), bg, border },
-    })
+  // BP ノード + supports エッジ（BP → Outcome）
+  if (showSupports) {
+    process.base_practices.forEach((bp) => {
+      nodes.push({
+        id: bp.id,
+        type: 'bpNode',
+        position: { x: 0, y: 0 },
+        data: { label: bp.id, name: t(bp.name, lang), bg, border },
+      })
 
-    // BP → supports Outcomes
-    if (activeEdgeTypes.has('supports')) {
-      bp.supportsOutcomes.forEach((ocId) => {
+      bp.outcome_refs.forEach((refId) => {
+        const ocNodeId = `oc-${refId}`
         edges.push({
-          id: `${bp.id}→${ocId}`,
+          id: `${bp.id}→${ocNodeId}`,
           source: bp.id,
-          target: ocId,
+          target: ocNodeId,
           type: 'smoothstep',
           style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
           label: lang === 'en' ? 'supports' : '達成',
@@ -203,28 +185,42 @@ export function buildDetailLevelGraph(
           labelBgStyle: { fill: '#0f172a' },
         })
       })
-    }
+    })
+  }
 
-    // 出力情報項目
-    if (activeEdgeTypes.has('produces')) {
-      bp.outputs.forEach((ref) => {
-        const itemNodeId = `item-${ref.itemId}`
-        if (!nodes.find((n) => n.id === itemNodeId)) {
-          const item = process.outputItems.find((it) => it.id === ref.itemId)
+  // OutputItem ノード + produces エッジ（Outcome → OutputItem）
+  if (showProduces) {
+    process.output_information_items.forEach((poi) => {
+      const itemNodeId = `item-${poi.id}`
+      if (!nodes.find((n) => n.id === itemNodeId)) {
+        const item = INFORMATION_ITEMS.find((it) => it.id === poi.id)
+        nodes.push({
+          id: itemNodeId,
+          type: 'itemNode',
+          position: { x: 0, y: 0 },
+          data: {
+            label: poi.id,
+            name: item ? t(item.name, lang) : poi.id,
+            isOutput: true,
+          },
+        })
+      }
+
+      poi.outcome_refs.forEach((refId) => {
+        const ocNodeId = `oc-${refId}`
+        // Outcome ノードが存在しない場合（supports が OFF）は追加する
+        if (!nodes.find((n) => n.id === ocNodeId)) {
+          const oc = process.outcomes.find((o) => o.id === refId)
           nodes.push({
-            id: itemNodeId,
-            type: 'itemNode',
+            id: ocNodeId,
+            type: 'outcomeNode',
             position: { x: 0, y: 0 },
-            data: {
-              label: ref.itemId,
-              name: item ? t(item.name, lang) : ref.itemId,
-              isOutput: true,
-            },
+            data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
           })
         }
         edges.push({
-          id: `${bp.id}→${itemNodeId}`,
-          source: bp.id,
+          id: `${ocNodeId}→${itemNodeId}`,
+          source: ocNodeId,
           target: itemNodeId,
           type: 'smoothstep',
           style: { stroke: '#22c55e', strokeWidth: 1.5 },
@@ -233,37 +229,8 @@ export function buildDetailLevelGraph(
           labelBgStyle: { fill: '#0f172a' },
         })
       })
-    }
-
-    // 入力情報項目
-    if (activeEdgeTypes.has('input')) {
-      bp.inputs.forEach((ref) => {
-        const itemNodeId = `ext-${ref.itemId}`
-        if (!nodes.find((n) => n.id === itemNodeId)) {
-          nodes.push({
-            id: itemNodeId,
-            type: 'itemNode',
-            position: { x: 0, y: 0 },
-            data: {
-              label: ref.itemId,
-              name: ref.itemId,
-              isOutput: false,
-            },
-          })
-        }
-        edges.push({
-          id: `${itemNodeId}→${bp.id}`,
-          source: itemNodeId,
-          target: bp.id,
-          type: 'smoothstep',
-          style: { stroke: '#3b82f6', strokeWidth: 1.5 },
-          label: lang === 'en' ? 'input' : '入力',
-          labelStyle: { fill: '#60a5fa', fontSize: 10 },
-          labelBgStyle: { fill: '#0f172a' },
-        })
-      })
-    }
-  })
+    })
+  }
 
   const layoutNodes = applyDagreLayout(nodes, edges, { rankdir: 'LR', ranksep: 130, nodesep: 35 })
 

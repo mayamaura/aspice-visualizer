@@ -1,4 +1,4 @@
-export type ProcessGroup = 'SYS' | 'SWE' | 'HWE' | 'MAN' | 'SUP' | 'ACQ' | 'SPL' | 'REU'
+export type ProcessGroup = 'SYS' | 'SWE' | 'HWE' | 'MAN' | 'SUP' | 'ACQ' | 'SPL' | 'REU' | 'VAL' | 'MLE' | 'PIM' | 'SEC'
 
 export type Language = 'en' | 'ja'
 
@@ -7,45 +7,91 @@ export interface BilingualText {
   ja: string
 }
 
-export interface InformationItem {
-  id: string              // e.g. "17-08"
-  name: BilingualText
-  characteristics: BilingualText[]
-}
-
-export interface InformationItemRef {
-  itemId: string          // references InformationItem.id
-  note?: BilingualText
-}
-
-export interface BasePractice {
-  id: string              // e.g. "SWE.1.BP1"
-  name: BilingualText
-  description: BilingualText
-  supportsOutcomes: string[]     // Outcome IDs e.g. ["SWE.1.1", "SWE.1.2"]
-  outputs: InformationItemRef[]
-  inputs: InformationItemRef[]
+export interface Note {
+  id: number
+  text: BilingualText
 }
 
 export interface Outcome {
-  id: string              // e.g. "SWE.1.1"
+  id: number
+  text: BilingualText
+}
+
+export interface BasePractice {
+  id: string
+  name: BilingualText
   description: BilingualText
+  notes: Note[]
+  outcome_refs: number[]
+}
+
+export interface ProcessOutputItem {
+  id: string
+  outcome_refs: number[]
+}
+
+export interface Characteristic {
+  type: 'bullet' | 'category' | 'note'
+  en: string
+  ja?: string
+}
+
+export interface InformationItem {
+  id: string
+  name: BilingualText
+  description?: BilingualText
+  characteristics: Characteristic[]
 }
 
 export interface Process {
-  id: string              // e.g. "SWE.1"
+  id: string
   name: BilingualText
   group: ProcessGroup
   purpose: BilingualText
   outcomes: Outcome[]
-  basePractices: BasePractice[]
-  outputItems: InformationItem[]
+  base_practices: BasePractice[]
+  output_information_items: ProcessOutputItem[]
 }
 
 export interface ProcessGroup_Meta {
   id: ProcessGroup
   name: BilingualText
-  color: string           // Tailwind bg color class
+  color: string
   textColor: string
   borderColor: string
+}
+
+// 能力次元（将来の拡張用）
+export interface Achievement {
+  id: number
+  text: BilingualText
+}
+
+export interface GenericPractice {
+  id: string
+  name: BilingualText
+  description: BilingualText
+  notes: Note[]
+  achievement_refs: number[]
+}
+
+export interface CapabilityOutputItem {
+  id: string
+  achievement_refs: number[]
+}
+
+export interface ProcessAttribute {
+  id: string
+  name: BilingualText
+  scope: BilingualText
+  achievements: Achievement[]
+  generic_practices: GenericPractice[]
+  output_information_items: CapabilityOutputItem[]
+}
+
+export interface CapabilityLevel {
+  level: number
+  name?: BilingualText
+  description?: BilingualText
+  process_attributes: ProcessAttribute[]
 }
