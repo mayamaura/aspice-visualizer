@@ -96,11 +96,11 @@ const GROUP_FIXED: Record<string, { y: number; height: number }> = {
   SYS: { y: 0,   height: 260 },  // 3行
   VAL: { y: 0,   height: 110 },  // 1行
   MAN: { y: 0,   height: 335 },  // 4行
-  SWE: { y: 280, height: 260 },  // 3行
-  HWE: { y: 280, height: 185 },  // 2行
+  SWE: { y: 280, height: 260 },  // 3行（HWEと高さ揃え）
+  HWE: { y: 280, height: 260 },  // SWEに揃えて 185→260
   ACQ: { y: 430, height: 185 },  // 2行
-  SEC: { y: 560, height: 185 },  // 2行
-  MLE: { y: 485, height: 185 },  // 2行
+  SEC: { y: 560, height: 185 },  // 2行（MLEと高さ・y揃え）
+  MLE: { y: 560, height: 185 },  // SECに合わせ y: 485→560
   PIM: { y: 355, height: 110 },  // 1行
   REU: { y: 485, height: 110 },  // 1行
   SPL: { y: 615, height: 110 },  // 1行
@@ -197,20 +197,28 @@ export function buildProcessLevelGraph(
     colWidths[gid] = { col0, col1 }
   }
 
-  // 2. グループコンテナ幅を算出
+  // 2. グループコンテナ幅を算出（個別）
   const containerW: Partial<Record<ProcessGroup, number>> = {}
   for (const gid of activeGroups) {
     const { col0, col1 } = colWidths[gid]!
     containerW[gid] = INNER_PAD + col0 + (col1 > 0 ? COL_GAP_INNER + col1 : 0) + INNER_PAD
   }
 
-  // 3. グローバル列のx座標を算出（同列内アクティブグループの最大コンテナ幅で列幅決定）
+  // 2b. 同一グローバル列内でコンテナ幅を統一（最大値に揃える）
+  for (const colGroups of GLOBAL_COLUMNS) {
+    const active = colGroups.filter((g) => activeGroups.has(g))
+    if (active.length === 0) continue
+    const maxW = Math.max(...active.map((g) => containerW[g] ?? 0))
+    for (const g of active) containerW[g] = maxW
+  }
+
+  // 3. グローバル列のx座標を算出（同列は幅が揃っているので最初のグループの幅を使用）
   const groupX: Partial<Record<ProcessGroup, number>> = {}
   let x = 0
   for (const colGroups of GLOBAL_COLUMNS) {
     const active = colGroups.filter((g) => activeGroups.has(g))
     if (active.length === 0) continue
-    const colWidth = Math.max(...active.map((g) => containerW[g] ?? 0))
+    const colWidth = containerW[active[0]] ?? 0
     for (const g of active) groupX[g] = x
     x += colWidth + COL_GAP_OUTER
   }
