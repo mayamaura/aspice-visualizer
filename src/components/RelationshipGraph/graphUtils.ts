@@ -88,119 +88,171 @@ function applyDagreLayout(
   })
 }
 
-// ASPICE 4.0 プロセスアーキテクチャ図に準拠したグループコンテナの絶対座標・サイズ
-// 列構成: [SUP/ACQ] [SYS/SWE/SEC] [VAL/HWE/MLE] [MAN/PIM/REU/SPL]
-const GROUP_LAYOUT: Record<string, { x: number; y: number; width: number; height: number }> = {
-  SUP: { x: 0,    y: 0,   width: 205, height: 410 },
-  SYS: { x: 225,  y: 0,   width: 395, height: 260 },
-  VAL: { x: 640,  y: 0,   width: 205, height: 110 },
-  MAN: { x: 1055, y: 0,   width: 205, height: 335 },
-  SWE: { x: 225,  y: 280, width: 395, height: 260 },
-  HWE: { x: 640,  y: 280, width: 395, height: 185 },
-  ACQ: { x: 0,    y: 430, width: 205, height: 185 },
-  SEC: { x: 225,  y: 560, width: 395, height: 185 },
-  MLE: { x: 640,  y: 485, width: 395, height: 185 },
-  PIM: { x: 1055, y: 355, width: 205, height: 110 },
-  REU: { x: 1055, y: 485, width: 205, height: 110 },
-  SPL: { x: 1055, y: 615, width: 205, height: 110 },
+// ---- グループコンテナの y 座標・高さ（固定） ----
+// x 座標・幅はノードのテキスト幅を計測して動的に決定する
+// 高さ = LABEL_H(30) + rows×NODE_H(65) + (rows-1)×ROW_GAP(10) + INNER_PAD(15)
+const GROUP_FIXED: Record<string, { y: number; height: number }> = {
+  SUP: { y: 0,   height: 410 },  // 5行
+  SYS: { y: 0,   height: 260 },  // 3行
+  VAL: { y: 0,   height: 110 },  // 1行
+  MAN: { y: 0,   height: 335 },  // 4行
+  SWE: { y: 280, height: 260 },  // 3行
+  HWE: { y: 280, height: 185 },  // 2行
+  ACQ: { y: 430, height: 185 },  // 2行
+  SEC: { y: 560, height: 185 },  // 2行
+  MLE: { y: 485, height: 185 },  // 2行
+  PIM: { y: 355, height: 110 },  // 1行
+  REU: { y: 485, height: 110 },  // 1行
+  SPL: { y: 615, height: 110 },  // 1行
 }
 
-// 各プロセスのグループコンテナ内ローカル座標（x:15=左パディング、y:30=ラベル分の上パディング）
-// 列ステップ: 175(ノード幅)+15(列間ギャップ)=190、行ステップ: 65(ノード高)+10(行間ギャップ)=75
-const PROCESS_POSITIONS: Record<string, { x: number; y: number }> = {
-  // SUP: 1列×5行
-  'SUP.1':  { x: 15, y: 30  },
-  'SUP.8':  { x: 15, y: 105 },
-  'SUP.9':  { x: 15, y: 180 },
-  'SUP.10': { x: 15, y: 255 },
-  'SUP.11': { x: 15, y: 330 },
-  // SYS: 2列×3行（画像のカスケード配置: SYS.5を右列上段、中段右は空、下段にSYS.3/SYS.4）
-  'SYS.1':  { x: 15,  y: 30  },
-  'SYS.5':  { x: 205, y: 30  },
-  'SYS.2':  { x: 15,  y: 105 },
-  'SYS.3':  { x: 15,  y: 180 },
-  'SYS.4':  { x: 205, y: 180 },
-  // VAL: 1ノード
-  'VAL.1':  { x: 15, y: 30 },
-  // MAN: 1列×4行
-  'MAN.3':  { x: 15, y: 30  },
-  'MAN.5':  { x: 15, y: 105 },
-  'MAN.6':  { x: 15, y: 180 },
-  'MAN.7':  { x: 15, y: 255 },
-  // SWE: 2列×3行
-  'SWE.1':  { x: 15,  y: 30  },
-  'SWE.6':  { x: 205, y: 30  },
-  'SWE.2':  { x: 15,  y: 105 },
-  'SWE.5':  { x: 205, y: 105 },
-  'SWE.3':  { x: 15,  y: 180 },
-  'SWE.4':  { x: 205, y: 180 },
-  // HWE: 2列×2行
-  'HWE.1':  { x: 15,  y: 30 },
-  'HWE.4':  { x: 205, y: 30 },
-  'HWE.2':  { x: 15,  y: 105 },
-  'HWE.3':  { x: 205, y: 105 },
-  // ACQ: 1列×2行
-  'ACQ.2':  { x: 15, y: 30 },
-  'ACQ.4':  { x: 15, y: 105 },
-  // SEC: 2列×2行
-  'SEC.1':  { x: 15,  y: 30 },
-  'SEC.4':  { x: 205, y: 30 },
-  'SEC.2':  { x: 15,  y: 105 },
-  'SEC.3':  { x: 205, y: 105 },
-  // MLE: 2列×2行
-  'MLE.1':  { x: 15,  y: 30 },
-  'MLE.4':  { x: 205, y: 30 },
-  'MLE.2':  { x: 15,  y: 105 },
-  'MLE.3':  { x: 205, y: 105 },
-  // PIM / REU / SPL: 各1ノード
-  'PIM.3':  { x: 15, y: 30 },
-  'REU.2':  { x: 15, y: 30 },
-  'SPL.2':  { x: 15, y: 30 },
+// 各プロセスのグループ内の行・列インデックス（col 0=左列 / 1=右列）
+const PROCESS_LAYOUT: Record<string, { row: number; col: 0 | 1 }> = {
+  'SUP.1':  {row:0,col:0}, 'SUP.8':  {row:1,col:0}, 'SUP.9':  {row:2,col:0},
+  'SUP.10': {row:3,col:0}, 'SUP.11': {row:4,col:0},
+  'SYS.1':  {row:0,col:0}, 'SYS.5':  {row:0,col:1},
+  'SYS.2':  {row:1,col:0},
+  'SYS.3':  {row:2,col:0}, 'SYS.4':  {row:2,col:1},
+  'VAL.1':  {row:0,col:0},
+  'MAN.3':  {row:0,col:0}, 'MAN.5':  {row:1,col:0}, 'MAN.6':  {row:2,col:0}, 'MAN.7':  {row:3,col:0},
+  'SWE.1':  {row:0,col:0}, 'SWE.6':  {row:0,col:1},
+  'SWE.2':  {row:1,col:0}, 'SWE.5':  {row:1,col:1},
+  'SWE.3':  {row:2,col:0}, 'SWE.4':  {row:2,col:1},
+  'HWE.1':  {row:0,col:0}, 'HWE.4':  {row:0,col:1},
+  'HWE.2':  {row:1,col:0}, 'HWE.3':  {row:1,col:1},
+  'ACQ.2':  {row:0,col:0}, 'ACQ.4':  {row:1,col:0},
+  'SEC.1':  {row:0,col:0}, 'SEC.4':  {row:0,col:1},
+  'SEC.2':  {row:1,col:0}, 'SEC.3':  {row:1,col:1},
+  'MLE.1':  {row:0,col:0}, 'MLE.4':  {row:0,col:1},
+  'MLE.2':  {row:1,col:0}, 'MLE.3':  {row:1,col:1},
+  'PIM.3':  {row:0,col:0}, 'REU.2':  {row:0,col:0}, 'SPL.2':  {row:0,col:0},
+}
+
+// グローバル列構成（同一列の最大コンテナ幅でグループ x 座標を決定）
+const GLOBAL_COLUMNS: ProcessGroup[][] = [
+  ['SUP', 'ACQ'],
+  ['SYS', 'SWE', 'SEC'],
+  ['VAL', 'HWE', 'MLE'],
+  ['MAN', 'PIM', 'REU', 'SPL'],
+]
+
+// ---- レイアウト定数 ----
+const LABEL_H       = 30   // グループラベル領域の高さ
+const NODE_H        = 65   // ノード高さ（固定）
+const ROW_GAP       = 10   // 行間ギャップ
+const INNER_PAD     = 15   // グループ内パディング（左右・下）
+const COL_GAP_INNER = 15   // グループ内の列間ギャップ
+const COL_GAP_OUTER = 20   // グループ列間ギャップ
+
+// ---- テキスト幅計測（Canvas API） ----
+let _canvas: HTMLCanvasElement | null = null
+
+function measurePx(text: string, font: string): number {
+  if (typeof document === 'undefined') {
+    // ブラウザ外フォールバック（CJK ≈ 12px, ASCII ≈ 7px）
+    let w = 0
+    for (const ch of text) w += ch.charCodeAt(0) > 127 ? 12 : 7
+    return w
+  }
+  if (!_canvas) _canvas = document.createElement('canvas')
+  const ctx = _canvas.getContext('2d')!
+  ctx.font = font
+  return ctx.measureText(text).width
+}
+
+const FONT_NAME = '12px ui-sans-serif,system-ui,sans-serif'
+const FONT_ID   = 'bold 12px ui-monospace,monospace'
+
+// EN・JA 両言語のうち長い方のテキスト幅 + 水平パディング (px-3 = 24px)
+function calcNodeWidth(process: Process): number {
+  const pad = 24
+  return Math.max(
+    140,
+    Math.ceil(measurePx(process.id,      FONT_ID)   + pad),
+    Math.ceil(measurePx(process.name.en, FONT_NAME) + pad),
+    Math.ceil(measurePx(process.name.ja, FONT_NAME) + pad),
+  )
 }
 
 /**
  * プロセスレベルグラフ。
  * ASPICE 4.0 プロセスアーキテクチャ図に準拠した固定レイアウトで表示する。
- * アクティブなグループのみ GroupNode（コンテナ）を生成し、
- * 各プロセスをその子ノードとして配置する。エッジなし。
+ * 各プロセスノードの幅は EN/JA 両テキストをCanvas計測した最大値で決定し、
+ * グループコンテナ幅はその列最大幅から動的に算出する。エッジなし。
  */
 export function buildProcessLevelGraph(
   processes: Process[],
   lang: Language,
   activeGroups: Set<ProcessGroup>
 ): { nodes: Node[]; edges: Edge[] } {
+  // 1. グループごとに左列・右列の最大ノード幅を算出
+  const colWidths: Partial<Record<ProcessGroup, { col0: number; col1: number }>> = {}
+  for (const gid of activeGroups) {
+    let col0 = 0, col1 = 0
+    for (const p of processes.filter((p) => p.group === gid)) {
+      const w = calcNodeWidth(p)
+      if ((PROCESS_LAYOUT[p.id]?.col ?? 0) === 0) col0 = Math.max(col0, w)
+      else col1 = Math.max(col1, w)
+    }
+    colWidths[gid] = { col0, col1 }
+  }
+
+  // 2. グループコンテナ幅を算出
+  const containerW: Partial<Record<ProcessGroup, number>> = {}
+  for (const gid of activeGroups) {
+    const { col0, col1 } = colWidths[gid]!
+    containerW[gid] = INNER_PAD + col0 + (col1 > 0 ? COL_GAP_INNER + col1 : 0) + INNER_PAD
+  }
+
+  // 3. グローバル列のx座標を算出（同列内アクティブグループの最大コンテナ幅で列幅決定）
+  const groupX: Partial<Record<ProcessGroup, number>> = {}
+  let x = 0
+  for (const colGroups of GLOBAL_COLUMNS) {
+    const active = colGroups.filter((g) => activeGroups.has(g))
+    if (active.length === 0) continue
+    const colWidth = Math.max(...active.map((g) => containerW[g] ?? 0))
+    for (const g of active) groupX[g] = x
+    x += colWidth + COL_GAP_OUTER
+  }
+
+  // 4. ノード生成
   const nodes: Node[] = []
+  for (const gid of activeGroups) {
+    const fixed = GROUP_FIXED[gid]
+    if (!fixed) continue
 
-  for (const groupId of activeGroups) {
-    const layout = GROUP_LAYOUT[groupId]
-    if (!layout) continue
+    const { bg, border } = processNodeColor(gid)
+    const groupMeta = PROCESS_GROUPS.find((g) => g.id === gid)
+    const groupName = groupMeta ? t(groupMeta.name, lang) : gid
+    const { col0, col1 } = colWidths[gid]!
+    const cw = containerW[gid]!
+    const gx = groupX[gid] ?? 0
+    const col1X = INNER_PAD + col0 + COL_GAP_INNER
 
-    const { bg, border } = processNodeColor(groupId)
-    const groupMeta = PROCESS_GROUPS.find((g) => g.id === groupId)
-    const groupName = groupMeta ? t(groupMeta.name, lang) : groupId
-
-    // グループコンテナノード
-    const groupNodeId = `group-${groupId}`
+    const groupNodeId = `group-${gid}`
     nodes.push({
       id: groupNodeId,
       type: 'groupNode',
-      position: { x: layout.x, y: layout.y },
-      style: { width: layout.width, height: layout.height },
+      position: { x: gx, y: fixed.y },
+      style: { width: cw, height: fixed.height },
       selectable: false,
       draggable: false,
-      data: { label: groupId, name: groupName, color: bg, borderColor: border },
+      data: { label: gid, name: groupName, color: bg, borderColor: border },
     })
 
-    // プロセスノード（グループコンテナの子）
-    const groupProcesses = processes.filter((p) => p.group === groupId)
-    for (const p of groupProcesses) {
-      const pos = PROCESS_POSITIONS[p.id] ?? { x: 15, y: 30 }
+    for (const p of processes.filter((p) => p.group === gid)) {
+      const pl = PROCESS_LAYOUT[p.id] ?? { row: 0, col: 0 }
+      const isCol1 = pl.col === 1
       nodes.push({
         id: p.id,
         type: 'processNode',
-        position: pos,
+        position: {
+          x: isCol1 ? col1X : INNER_PAD,
+          y: LABEL_H + pl.row * (NODE_H + ROW_GAP),
+        },
         parentNode: groupNodeId,
         extent: 'parent' as const,
+        style: { width: isCol1 ? col1 : col0 },
         data: {
           label: p.id,
           name: t(p.name, lang),
