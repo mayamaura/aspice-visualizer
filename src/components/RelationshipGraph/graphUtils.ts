@@ -394,6 +394,7 @@ export function buildDetailLevelGraph(
 /**
  * 情報項目一覧グラフ。
  * 全プロセスが出力する情報項目ノードを一覧表示する（クリックで起点グラフへ遷移）。
+ * XX-YY 形式のIDを XX でグループ化し列に配置、YY の昇順で行方向に並べる。
  */
 export function buildItemLevelGraph(
   processes: Process[],
@@ -402,19 +403,60 @@ export function buildItemLevelGraph(
   const usedItemIds = new Set<string>()
   processes.forEach((p) => p.output_information_items.forEach((poi) => usedItemIds.add(poi.id)))
 
+  // XX-YY 形式の ID を XX でグループ化
+  const groups = new Map<string, string[]>()
+  const ungrouped: string[] = []
+  for (const id of usedItemIds) {
+    const match = id.match(/^(\d+)-(\d+)$/)
+    if (match) {
+      const xx = match[1]
+      if (!groups.has(xx)) groups.set(xx, [])
+      groups.get(xx)!.push(id)
+    } else {
+      ungrouped.push(id)
+    }
+  }
+
+  // XX を数値順にソート、各グループ内は YY の昇順にソート
+  const sortedXXs = Array.from(groups.keys()).sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+  for (const xx of sortedXXs) {
+    groups.get(xx)!.sort((a, b) => parseInt(a.split('-')[1], 10) - parseInt(b.split('-')[1], 10))
+  }
+
+  const ITEM_W = NODE_SIZE.itemNode.width
+  const ITEM_H = NODE_SIZE.itemNode.height
+  const COL_GAP = 20
+  const ROW_GAP = 15
+
   const nodes: Node[] = []
-  usedItemIds.forEach((id) => {
+  let colX = 0
+
+  for (const xx of sortedXXs) {
+    const items = groups.get(xx)!
+    items.forEach((id, rowIndex) => {
+      const item = INFORMATION_ITEMS.find((i) => i.id === id)
+      nodes.push({
+        id: `item-${id}`,
+        type: 'itemNode',
+        position: { x: colX, y: rowIndex * (ITEM_H + ROW_GAP) },
+        data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
+      })
+    })
+    colX += ITEM_W + COL_GAP
+  }
+
+  // XX-YY 形式でないIDは末尾列に追加
+  ungrouped.sort().forEach((id, rowIndex) => {
     const item = INFORMATION_ITEMS.find((i) => i.id === id)
     nodes.push({
       id: `item-${id}`,
       type: 'itemNode',
-      position: { x: 0, y: 0 },
+      position: { x: colX, y: rowIndex * (ITEM_H + ROW_GAP) },
       data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
     })
   })
 
-  const layoutNodes = applyDagreLayout(nodes, [], { rankdir: 'LR', ranksep: 80, nodesep: 30 })
-  return { nodes: layoutNodes, edges: [] }
+  return { nodes, edges: [] }
 }
 
 /**
