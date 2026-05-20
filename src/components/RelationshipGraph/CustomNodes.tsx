@@ -1,5 +1,36 @@
 import { Handle, Position } from 'reactflow'
 
+interface GroupNodeData {
+  label: string
+  name: string
+  color: string
+  borderColor: string
+}
+
+export function GroupNode({ data }: { data: GroupNodeData }) {
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: `${data.color}1a`,
+        border: `1.5px solid ${data.borderColor}`,
+        borderRadius: 8,
+        boxSizing: 'border-box',
+      }}
+    >
+      <div style={{ padding: '3px 8px', lineHeight: 1.3 }}>
+        <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: data.borderColor }}>
+          {data.label}
+        </span>
+        <span style={{ fontSize: 10, color: data.borderColor, opacity: 0.7, marginLeft: 5 }}>
+          {data.name}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 interface ProcessNodeData {
   label: string
   name: string
@@ -7,9 +38,11 @@ interface ProcessNodeData {
   bg: string
   border: string
   isRoot?: boolean
+  showHandles?: boolean
 }
 
 export function ProcessNode({ data }: { data: ProcessNodeData }) {
+  const showHandles = data.showHandles !== false
   return (
     <div
       className="rounded-lg px-3 py-2 min-w-[140px] cursor-pointer transition-all"
@@ -19,12 +52,12 @@ export function ProcessNode({ data }: { data: ProcessNodeData }) {
         boxShadow: data.isRoot ? `0 0 12px ${data.border}66` : undefined,
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: data.border }} />
+      {showHandles && <Handle type="target" position={Position.Left} style={{ background: data.border }} />}
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color: data.border }}>
         {data.label}
       </div>
       <div className="text-xs text-gray-200 leading-tight">{data.name}</div>
-      <Handle type="source" position={Position.Right} style={{ background: data.border }} />
+      {showHandles && <Handle type="source" position={Position.Right} style={{ background: data.border }} />}
     </div>
   )
 }

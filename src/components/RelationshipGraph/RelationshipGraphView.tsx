@@ -8,7 +8,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import { ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
+import { GroupNode, ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
 import {
   buildProcessLevelGraph,
   buildDetailLevelGraph,
@@ -26,6 +26,7 @@ import { PROCESS_GROUPS } from '../../data'
 import { INFORMATION_ITEMS } from '../../data'
 
 const nodeTypes = {
+  groupNode: GroupNode,
   processNode: ProcessNode,
   outcomeNode: OutcomeNode,
   bpNode: BPNode,
@@ -98,6 +99,7 @@ export function RelationshipGraphView({ lang }: Props) {
   }, [hoveredNodeId, initNodes, initEdges])
 
   const onNodeClick: NodeMouseHandler = useCallback((_evt, node) => {
+    if (node.type === 'groupNode') return
     if (level === 'process') {
       const p = ALL_PROCESSES.find((proc) => proc.id === node.id)
       if (p) {
@@ -259,7 +261,10 @@ export function RelationshipGraphView({ lang }: Props) {
             <Background color="#1f2937" gap={20} />
             <Controls />
             <MiniMap
-              nodeColor={(n) => (n.data as { bg?: string }).bg ?? '#374151'}
+              nodeColor={(n) => {
+                const d = n.data as { bg?: string; color?: string }
+                return d.bg ?? d.color ?? '#374151'
+              }}
               style={{ background: '#111827' }}
             />
           </ReactFlow>

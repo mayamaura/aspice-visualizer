@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.4  
-**最終更新:** 2026-05-19  
+**バージョン:** 1.5  
+**最終更新:** 2026-05-20  
 
 ---
 
@@ -249,10 +249,26 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 
 | コンポーネント | ノード種別 | 用途 |
 |---|---|---|
-| `ProcessNode` | processNode | プロセスノード（グループ色） |
+| `GroupNode` | groupNode | プロセス群コンテナ（枠＋ラベル）。プロセスレベルのみ使用 |
+| `ProcessNode` | processNode | プロセスノード（グループ色）。プロセスレベルでは `parentId` を持ち GroupNode の子として配置 |
 | `OutcomeNode` | outcomeNode | プロセス成果ノード（インジゴ） |
 | `BPNode` | bpNode | 基本プラクティスノード（グループ色薄め） |
 | `ItemNode` | itemNode | 情報項目ノード（出力=緑 / 入力=青） |
+
+#### GroupNode の仕様
+
+```
+Props（data）: { label: string; color: string; borderColor: string }
+// label  : グループ名（例 "SYS システムエンジニアリング"）
+// color  : グループ背景色（半透明）
+// borderColor: グループ枠線色
+
+React Flow Node プロパティ:
+  type: 'groupNode'
+  style.width / style.height : コンテナサイズ（コンテンツに合わせて固定値）
+  // 子ノードは position を GroupNode 内ローカル座標で指定
+  // extent: 'parent' を子ノードに設定してコンテナ外にドラッグ不可とする
+```
 
 ### 4.7 graphUtils.ts
 
@@ -266,9 +282,32 @@ applyDagreLayout(nodes, edges, options: { rankdir, ranksep, nodesep })
 // プロセスレベルグラフ生成
 buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>)
   → { nodes: Node[], edges: Edge[] }
-  // activeGroupsでフィルタしたプロセスのみノード化
+  // activeGroupsでフィルタしたグループのみ GroupNode（コンテナ）を生成
+  // 各プロセスノードは対応する GroupNode の子（parentId 設定、extent: 'parent'）
   // エッジなし（ASPICE 4.0 はプロセス間の明示的接続を持たない）
-  // Dagre rankdir:LR で自動レイアウト
+  // レイアウト: Dagre 自動配置ではなく、ASPICE 4.0 プロセスアーキテクチャ図に
+  //   準拠した固定座標（GROUP_LAYOUT_CONFIG）で GroupNode を配置し、
+  //   各プロセスは GroupNode 内ローカル座標（PROCESS_POSITIONS）で配置
+  //
+  // GROUP_LAYOUT_CONFIG（グループコンテナの絶対座標・サイズ）:
+  //   各グループに x, y, width, height を固定値で定義
+  //   画像の空間配置に対応:
+  //     SUP  : 左列
+  //     SYS  : 上段中央
+  //     VAL  : 上段右寄り（SYSの右隣）
+  //     MAN  : 右列
+  //     SWE  : 中段左寄り
+  //     HWE  : 中段右寄り
+  //     ACQ  : 下段左
+  //     SEC  : 下段中央左
+  //     MLE  : 下段中央右
+  //     PIM  : 下段右
+  //     REU  : 下段右（PIMの下）
+  //     SPL  : 下段右（REUの下）
+  //
+  // PROCESS_POSITIONS（各プロセスのコンテナ内相対座標）:
+  //   プロセスIDをキーに { x, y } を固定値で定義
+  //   各グループ内でのプロセス配置も画像の並びに準拠
 
 // BP/情報項目レベルグラフ生成（単一プロセス）
 buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<EdgeType>)
@@ -353,6 +392,7 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 
 | ノード種別 | 背景 | ボーダー |
 |---|---|---|
+| GroupNode | グループ色（hex, opacity 15%） | グループボーダー色（hex） |
 | ProcessNode | グループ色（hex） | グループボーダー色（hex） |
 | OutcomeNode | #1e1b4b (indigo-950) | #4f46e5 (indigo-600) |
 | BPNode | グループ色（hex） | グループボーダー色（hex） |

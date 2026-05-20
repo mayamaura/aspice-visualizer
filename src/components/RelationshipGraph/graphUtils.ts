@@ -3,7 +3,7 @@ import type { Process, ProcessGroup } from '../../types/aspice'
 import type { Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import type { EdgeType } from '../common/EdgeTypeFilterBar'
-import { INFORMATION_ITEMS } from '../../data'
+import { INFORMATION_ITEMS, PROCESS_GROUPS } from '../../data'
 import dagre from '@dagrejs/dagre'
 
 export type GraphLevel = 'process' | 'bp' | 'item'
@@ -88,38 +88,132 @@ function applyDagreLayout(
   })
 }
 
+// ASPICE 4.0 プロセスアーキテクチャ図に準拠したグループコンテナの絶対座標・サイズ
+// 列構成: [SUP/ACQ] [SYS/SWE/SEC] [VAL/HWE/MLE] [MAN/PIM/REU/SPL]
+const GROUP_LAYOUT: Record<string, { x: number; y: number; width: number; height: number }> = {
+  SUP: { x: 0,    y: 0,   width: 205, height: 410 },
+  SYS: { x: 225,  y: 0,   width: 395, height: 260 },
+  VAL: { x: 640,  y: 0,   width: 205, height: 110 },
+  MAN: { x: 1055, y: 0,   width: 205, height: 335 },
+  SWE: { x: 225,  y: 280, width: 395, height: 260 },
+  HWE: { x: 640,  y: 280, width: 395, height: 185 },
+  ACQ: { x: 0,    y: 430, width: 205, height: 185 },
+  SEC: { x: 225,  y: 560, width: 395, height: 185 },
+  MLE: { x: 640,  y: 485, width: 395, height: 185 },
+  PIM: { x: 1055, y: 355, width: 205, height: 110 },
+  REU: { x: 1055, y: 485, width: 205, height: 110 },
+  SPL: { x: 1055, y: 615, width: 205, height: 110 },
+}
+
+// 各プロセスのグループコンテナ内ローカル座標（x:15=左パディング、y:30=ラベル分の上パディング）
+// 列ステップ: 175(ノード幅)+15(列間ギャップ)=190、行ステップ: 65(ノード高)+10(行間ギャップ)=75
+const PROCESS_POSITIONS: Record<string, { x: number; y: number }> = {
+  // SUP: 1列×5行
+  'SUP.1':  { x: 15, y: 30  },
+  'SUP.8':  { x: 15, y: 105 },
+  'SUP.9':  { x: 15, y: 180 },
+  'SUP.10': { x: 15, y: 255 },
+  'SUP.11': { x: 15, y: 330 },
+  // SYS: 2列×3行（画像のカスケード配置: SYS.5を右列上段、中段右は空、下段にSYS.3/SYS.4）
+  'SYS.1':  { x: 15,  y: 30  },
+  'SYS.5':  { x: 205, y: 30  },
+  'SYS.2':  { x: 15,  y: 105 },
+  'SYS.3':  { x: 15,  y: 180 },
+  'SYS.4':  { x: 205, y: 180 },
+  // VAL: 1ノード
+  'VAL.1':  { x: 15, y: 30 },
+  // MAN: 1列×4行
+  'MAN.3':  { x: 15, y: 30  },
+  'MAN.5':  { x: 15, y: 105 },
+  'MAN.6':  { x: 15, y: 180 },
+  'MAN.7':  { x: 15, y: 255 },
+  // SWE: 2列×3行
+  'SWE.1':  { x: 15,  y: 30  },
+  'SWE.6':  { x: 205, y: 30  },
+  'SWE.2':  { x: 15,  y: 105 },
+  'SWE.5':  { x: 205, y: 105 },
+  'SWE.3':  { x: 15,  y: 180 },
+  'SWE.4':  { x: 205, y: 180 },
+  // HWE: 2列×2行
+  'HWE.1':  { x: 15,  y: 30 },
+  'HWE.4':  { x: 205, y: 30 },
+  'HWE.2':  { x: 15,  y: 105 },
+  'HWE.3':  { x: 205, y: 105 },
+  // ACQ: 1列×2行
+  'ACQ.2':  { x: 15, y: 30 },
+  'ACQ.4':  { x: 15, y: 105 },
+  // SEC: 2列×2行
+  'SEC.1':  { x: 15,  y: 30 },
+  'SEC.4':  { x: 205, y: 30 },
+  'SEC.2':  { x: 15,  y: 105 },
+  'SEC.3':  { x: 205, y: 105 },
+  // MLE: 2列×2行
+  'MLE.1':  { x: 15,  y: 30 },
+  'MLE.4':  { x: 205, y: 30 },
+  'MLE.2':  { x: 15,  y: 105 },
+  'MLE.3':  { x: 205, y: 105 },
+  // PIM / REU / SPL: 各1ノード
+  'PIM.3':  { x: 15, y: 30 },
+  'REU.2':  { x: 15, y: 30 },
+  'SPL.2':  { x: 15, y: 30 },
+}
+
 /**
  * プロセスレベルグラフ。
- * ASPICE 4.0 にはプロセス間の明示的な接続が存在しないため、
- * エッジなしでプロセスノードをグループ別に配置する。
+ * ASPICE 4.0 プロセスアーキテクチャ図に準拠した固定レイアウトで表示する。
+ * アクティブなグループのみ GroupNode（コンテナ）を生成し、
+ * 各プロセスをその子ノードとして配置する。エッジなし。
  */
 export function buildProcessLevelGraph(
   processes: Process[],
   lang: Language,
   activeGroups: Set<ProcessGroup>
 ): { nodes: Node[]; edges: Edge[] } {
-  const filtered = processes.filter((p) => activeGroups.has(p.group))
+  const nodes: Node[] = []
 
-  const nodes: Node[] = filtered.map((p) => {
-    const { bg, border } = processNodeColor(p.group)
-    return {
-      id: p.id,
-      type: 'processNode',
-      position: { x: 0, y: 0 },
-      data: {
-        label: p.id,
-        name: t(p.name, lang),
-        group: p.group,
-        bg,
-        border,
-        outputCount: p.output_information_items.length,
-      },
+  for (const groupId of activeGroups) {
+    const layout = GROUP_LAYOUT[groupId]
+    if (!layout) continue
+
+    const { bg, border } = processNodeColor(groupId)
+    const groupMeta = PROCESS_GROUPS.find((g) => g.id === groupId)
+    const groupName = groupMeta ? t(groupMeta.name, lang) : groupId
+
+    // グループコンテナノード
+    const groupNodeId = `group-${groupId}`
+    nodes.push({
+      id: groupNodeId,
+      type: 'groupNode',
+      position: { x: layout.x, y: layout.y },
+      style: { width: layout.width, height: layout.height },
+      selectable: false,
+      draggable: false,
+      data: { label: groupId, name: groupName, color: bg, borderColor: border },
+    })
+
+    // プロセスノード（グループコンテナの子）
+    const groupProcesses = processes.filter((p) => p.group === groupId)
+    for (const p of groupProcesses) {
+      const pos = PROCESS_POSITIONS[p.id] ?? { x: 15, y: 30 }
+      nodes.push({
+        id: p.id,
+        type: 'processNode',
+        position: pos,
+        parentNode: groupNodeId,
+        extent: 'parent' as const,
+        data: {
+          label: p.id,
+          name: t(p.name, lang),
+          group: p.group,
+          bg,
+          border,
+          showHandles: false,
+        },
+      })
     }
-  })
+  }
 
-  const layoutNodes = applyDagreLayout(nodes, [], { rankdir: 'LR', ranksep: 120, nodesep: 40 })
-
-  return { nodes: layoutNodes, edges: [] }
+  return { nodes, edges: [] }
 }
 
 /**
