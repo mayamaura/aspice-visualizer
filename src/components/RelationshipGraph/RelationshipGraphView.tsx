@@ -20,6 +20,7 @@ import { ALL_PROCESSES } from '../../data'
 import { GroupFilterBar } from '../common/GroupFilterBar'
 import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
 import { ItemDetailPanel } from './ItemDetailPanel'
+import { BPLevelDetailPanel, type SelectedBPNode } from './BPLevelDetailPanel'
 import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
@@ -47,6 +48,7 @@ export function RelationshipGraphView({ lang }: Props) {
   const [activeEdgeTypes, setActiveEdgeTypes] = useState<Set<EdgeType>>(
     new Set<EdgeType>(['supports', 'produces'])
   )
+  const [selectedBPNode, setSelectedBPNode] = useState<SelectedBPNode | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -105,13 +107,29 @@ export function RelationshipGraphView({ lang }: Props) {
       if (p) {
         setFocusProcess(p)
         setLevel('bp')
+        setSelectedBPNode(null)
+      }
+    } else if (level === 'bp' && focusProcess) {
+      if (node.type === 'bpNode') {
+        const bp = focusProcess.base_practices.find((b) => b.id === node.id)
+        if (bp) setSelectedBPNode({ type: 'bp', bp, process: focusProcess })
+      } else if (node.type === 'outcomeNode') {
+        const ocId = parseInt(node.id.replace(/^oc-/, ''), 10)
+        const oc = focusProcess.outcomes.find((o) => o.id === ocId)
+        if (oc) setSelectedBPNode({ type: 'outcome', outcome: oc, process: focusProcess })
+      } else if (node.type === 'itemNode') {
+        const itemId = node.id.replace(/^item-/, '')
+        const item = INFORMATION_ITEMS.find((i) => i.id === itemId)
+        if (item) setSelectedBPNode({ type: 'item', item })
+      } else {
+        setSelectedBPNode(null)
       }
     } else if (level === 'item' && !focusItemId) {
       // 情報項目一覧で情報項目ノードをクリック → 起点グラフへ
       const itemId = node.id.replace(/^item-/, '')
       setFocusItemId(itemId)
     }
-  }, [level, focusItemId])
+  }, [level, focusItemId, focusProcess])
 
   const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
     if (level !== 'bp' && level !== 'item') return
@@ -132,6 +150,7 @@ export function RelationshipGraphView({ lang }: Props) {
   const handleBackToProcess = () => {
     setLevel('process')
     setFocusProcess(null)
+    setSelectedBPNode(null)
   }
 
   const handleBackToItemList = () => {
@@ -236,6 +255,11 @@ export function RelationshipGraphView({ lang }: Props) {
             {lang === 'en' ? 'Click an item to see its sources' : '情報項目をクリックして生成元を表示'}
           </span>
         )}
+        {level === 'bp' && (
+          <span className="ml-auto text-xs text-gray-500">
+            {lang === 'en' ? 'Click a node to view details' : 'ノードをクリックして詳細を表示'}
+          </span>
+        )}
         {level === 'item' && focusItemId && (
           <span className="ml-auto text-xs text-gray-500">
             {lang === 'en' ? 'Hover to highlight connections' : 'ホバーで接続を強調表示'}
@@ -269,6 +293,14 @@ export function RelationshipGraphView({ lang }: Props) {
             />
           </ReactFlow>
         </div>
+        {level === 'bp' && selectedBPNode && groupMeta && (
+          <BPLevelDetailPanel
+            selected={selectedBPNode}
+            groupMeta={groupMeta}
+            lang={lang}
+            onClose={() => setSelectedBPNode(null)}
+          />
+        )}
         {level === 'item' && focusItem && (
           <ItemDetailPanel item={focusItem} lang={lang} onClose={handleBackToItemList} />
         )}

@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.5  
-**最終更新:** 2026-05-20  
+**バージョン:** 1.6  
+**最終更新:** 2026-05-23  
 
 ---
 
@@ -84,7 +84,8 @@ AutomotiveSpiceVisualizer/
 │           ├── RelationshipGraphView.tsx ← グラフビュー全体
 │           ├── CustomNodes.tsx           ← React Flowカスタムノード
 │           ├── graphUtils.ts             ← ノード/エッジ生成ロジック
-│           └── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
+│           ├── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
+│           └── BPLevelDetailPanel.tsx    ← BP/Outcome/情報項目詳細サイドパネル（BP/情報項目レベル）
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
@@ -231,9 +232,12 @@ Props: { process, groupMeta, isSelected, lang, onClick }
   （useNodesState/useEdgesStateは使用しない）
 
 イベント:
-  onNodeClick (level==='process')           → focusProcess=クリックプロセス, level='bp' に切替
+  onNodeClick (level==='process')            → focusProcess=クリックプロセス, level='bp' に切替
+  onNodeClick (level==='bp', bpNode)         → selectedBPNode={ type:'bp', bp, process }
+  onNodeClick (level==='bp', outcomeNode)    → selectedBPNode={ type:'outcome', outcome, process }
+  onNodeClick (level==='bp', itemNode)       → selectedBPNode={ type:'item', item }
   onNodeClick (level==='item', !focusItemId) → focusItemId=クリック情報項目ID に設定
-  「戻る」ボタン（BP level）  → level='process', focusProcess=null
+  「戻る」ボタン（BP level）  → level='process', focusProcess=null, selectedBPNode=null
   「戻る」ボタン（item level） → focusItemId=null（情報項目一覧に戻る）
   onNodeMouseEnter (level==='bp' || level==='item') → 接続ノード・エッジを強調
 
@@ -243,6 +247,8 @@ Props: { process, groupMeta, isSelected, lang, onClick }
              / フォーカス情報項目バッジ（level==='item' && focusItemId 時）
              / <EdgeTypeFilterBar>（level==='bp' 時のみ）
   <ReactFlow>
+  <BPLevelDetailPanel> （level==='bp' && selectedBPNode !== null 時、グラフ右側）
+  <ItemDetailPanel>    （level==='item' && focusItem !== null 時、グラフ右側）
 ```
 
 ### 4.6 CustomNodes（React Flowカスタムノード）
@@ -334,6 +340,24 @@ buildItemFocusGraph(itemId: string, processes: Process[], lang: Language)
   // 複数プロセスが同じ情報項目を出力する場合はすべて展開
   // Dagre rankdir:LR で自動レイアウト
 ```
+
+### 4.7b BPLevelDetailPanel
+
+**責務:** BP/情報項目レベルでノードをクリックした際に表示する右側詳細パネル
+
+```typescript
+export type SelectedBPNode =
+  | { type: 'bp'; bp: BasePractice; process: Process }
+  | { type: 'outcome'; outcome: Outcome; process: Process }
+  | { type: 'item'; item: InformationItem }
+
+Props: { selected: SelectedBPNode; groupMeta: ProcessGroup_Meta; lang: Language; onClose: () => void }
+```
+
+表示内容:
+- `type === 'bp'`    : BP ID（グループ色）/ 名称 / 説明 / 達成する成果 / ノート
+- `type === 'outcome'`: 成果ID（インジゴ）/ テキスト / 達成するBP一覧 / 生成する情報項目一覧
+- `type === 'item'`  : 情報項目ID（エメラルド）/ 名称 / 説明 / 特性リスト
 
 ### 4.8 GroupFilterBar（共通コンポーネント）
 
