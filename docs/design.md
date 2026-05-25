@@ -1,7 +1,7 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.7  
+**バージョン:** 1.8  
 **最終更新:** 2026-05-26  
 
 ---
@@ -186,23 +186,26 @@ handleNavigate(target):
 状態:
   selected: Process | null
   activeGroups: Set<ProcessGroup>  （初期: 全8グループ）
+  highlightProcessId: string | null （検索ジャンプ時の一時ハイライト対象。2秒後自動null）
 
 レンダリング:
   <GroupFilterBar>（上部）
   左ペイン（flex-1）: activeGroupsでフィルタしたグループのみ表示
-                       → ProcessCard × n
-  右ペイン（w-420px）: selected !== null → <DetailPanel>
+                       → ProcessCard × n（highlightProcessId === p.id の場合 isHighlighted=true）
+  右ペイン（w-420px）: selected !== null → <DetailPanel onSelectProcess>
 
 副作用:
   activeGroupsから除外されたグループに属するselectedプロセスはnullリセット
+  navigateTo（FR-5ジャンプ）受信時: 対象プロセスをselected+highlightに設定し2秒後ハイライト解除
 ```
 
 ### 4.3 ProcessCard
 
-**責務:** 1プロセスのカードUI（選択状態・グループ色反映）
+**責務:** 1プロセスのカードUI（選択状態・ハイライト状態・グループ色反映）
 
 ```
-Props: { process, groupMeta, isSelected, lang, onClick }
+Props: { process, groupMeta, isSelected, isHighlighted?, lang, onClick }
+// isHighlighted: true のとき黄色リング（ring-2 ring-yellow-400）を表示
 ```
 
 ### 4.4 DetailPanel
@@ -210,6 +213,8 @@ Props: { process, groupMeta, isSelected, lang, onClick }
 **責務:** 選択プロセスの詳細表示（折りたたみセクション構成）
 
 ```
+Props: { process, groupMeta, lang, onClose, onSelectProcess? }
+
 セクション構成:
   1. Purpose（プロセス目的）
   2. Outcomes（プロセス成果）  ← outcome.id + description
@@ -217,6 +222,11 @@ Props: { process, groupMeta, isSelected, lang, onClick }
                                   + supportsOutcomes バッジ
                                   + inputs/outputs 情報項目ID
   4. Output Information Items  ← item.id + name + characteristics
+  5. Related Processes（関連プロセス） ← 共通情報項目IDを持つ他プロセス一覧
+     - 共通情報項目IDバッジを折りたたみ表示
+     - 項目クリック → onSelectProcess(p) で該当プロセスの詳細パネルに遷移
+     - デフォルト閉じた状態（defaultOpen=false）
+     - 関連プロセスが0件の場合は非表示
 ```
 
 ### 4.5 RelationshipGraphView

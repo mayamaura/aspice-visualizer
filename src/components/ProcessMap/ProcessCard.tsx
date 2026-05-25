@@ -7,16 +7,18 @@ interface Props {
   process: Process
   groupMeta: ProcessGroup_Meta
   isSelected: boolean
+  isHighlighted?: boolean
   lang: Language
   onClick: (p: Process) => void
 }
 
-export function ProcessCard({ process, groupMeta, isSelected, lang, onClick }: Props) {
+export function ProcessCard({ process, groupMeta, isSelected, isHighlighted, lang, onClick }: Props) {
   return (
     <button
       onClick={() => onClick(process)}
       className={`
         w-full text-left px-3 py-2 rounded-lg border transition-all duration-150
+        ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950' : ''}
         ${isSelected
           ? `${groupMeta.color} ${groupMeta.borderColor} ${groupMeta.textColor} ring-2 ring-offset-1 ring-offset-gray-950 ring-white/30`
           : `bg-gray-900 border-gray-700 hover:${groupMeta.color} hover:${groupMeta.borderColor} text-gray-300 hover:${groupMeta.textColor}`
