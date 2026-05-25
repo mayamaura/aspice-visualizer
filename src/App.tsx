@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Map, GitBranch } from 'lucide-react'
+import { Map, GitBranch, Network } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
+import { VModelView } from './components/VModelView/VModelView'
 import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
 import type { NavigateTarget } from './utils/searchUtils'
 
-type ViewId = 'map' | 'graph'
+type ViewId = 'map' | 'graph' | 'vmodel'
 
 const VIEWS = [
   { id: 'map' as ViewId, icon: Map, labelEn: 'Process Map', labelJa: 'プロセスマップ' },
   { id: 'graph' as ViewId, icon: GitBranch, labelEn: 'Relationship Graph', labelJa: 'リレーションシップグラフ' },
+  { id: 'vmodel' as ViewId, icon: Network, labelEn: 'V-Model', labelJa: 'Vモデル' },
 ]
 
 export default function App() {
@@ -81,6 +83,9 @@ export default function App() {
         )}
         {view === 'graph' && (
           <RelationshipGraphView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+        )}
+        {view === 'vmodel' && (
+          <VModelView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
         )}
       </main>
     </div>

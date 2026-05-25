@@ -1,7 +1,7 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.9  
+**バージョン:** 2.0  
 **最終更新:** 2026-05-26  
 
 ---
@@ -15,7 +15,8 @@
 ├── App.tsx                   ← ルートコンポーネント（ビュー切替・言語切替）
 ├── views/
 │   ├── ProcessMapView        ← プロセスマップビュー
-│   └── RelationshipGraphView ← リレーションシップグラフビュー
+│   ├── RelationshipGraphView ← リレーションシップグラフビュー
+│   └── VModelView            ← Vモデルビュー（SYS/SWE/HWE V字配置）
 ├── data/                     ← 静的プロセスデータ（TypeScript）
 ├── types/                    ← 型定義
 └── store/                    ← グローバル状態（言語）
@@ -84,14 +85,17 @@ AutomotiveSpiceVisualizer/
 │       │   ├── ProcessMapView.tsx  ← プロセスマップ全体レイアウト
 │       │   ├── ProcessCard.tsx     ← プロセスカード1件
 │       │   └── DetailPanel.tsx     ← 右側詳細パネル
-│       └── RelationshipGraph/
-│           ├── RelationshipGraphView.tsx ← グラフビュー全体
-│           ├── CustomNodes.tsx           ← React Flowカスタムノード
-│           ├── graphUtils.ts             ← ノード/エッジ生成ロジック
-│           ├── GraphExportButton.tsx     ← PNGエクスポートボタン（html-to-image使用）
-│           ├── ProcessHoverTooltip.tsx   ← プロセスノードホバー時ツールチップ
-│           ├── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
-│           └── BPLevelDetailPanel.tsx    ← BP/Outcome/情報項目詳細サイドパネル（BP/情報項目レベル）
+│       ├── RelationshipGraph/
+│       │   ├── RelationshipGraphView.tsx ← グラフビュー全体
+│       │   ├── CustomNodes.tsx           ← React Flowカスタムノード（VModelViewでも再利用）
+│       │   ├── graphUtils.ts             ← ノード/エッジ生成ロジック
+│       │   ├── GraphExportButton.tsx     ← PNGエクスポートボタン（html-to-image使用）
+│       │   ├── ProcessHoverTooltip.tsx   ← プロセスノードホバー時ツールチップ
+│       │   ├── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
+│       │   └── BPLevelDetailPanel.tsx    ← BP/Outcome/情報項目詳細サイドパネル（BP/情報項目レベル）
+│       └── VModelView/
+│           ├── VModelView.tsx            ← VモデルビューReact Flowキャンバス＋詳細パネル
+│           └── vmodelLayout.ts           ← V字固定座標・対応エッジ定義・buildVModelGraph()
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
@@ -166,15 +170,16 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
 
 ```
 状態:
-  view: 'map' | 'graph'           （初期値: 'map'）
-  lang: Language                   （useLang() フック経由）
-  pendingNav: NavigateTarget | null （グローバル検索からのジャンプ先、消費後null）
+  view: 'map' | 'graph' | 'vmodel' （初期値: 'map'）
+  lang: Language                    （useLang() フック経由）
+  pendingNav: NavigateTarget | null  （グローバル検索からのジャンプ先、消費後null）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ / GlobalSearch / EN/JAトグル
+  <header>  ← ASPICE 4.0バッジ / ビュータブ（3タブ）/ GlobalSearch / EN/JAトグル
   <main>
-    view==='map'   → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
-    view==='graph' → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
+    view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
+    view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
+    view==='vmodel' → <VModelView lang navigateTo={pendingNav} onNavConsumed />
 
 handleNavigate(target):
   target.type==='process' → setView('map'), setPendingNav(target)
@@ -386,7 +391,56 @@ Props: { selected: SelectedBPNode; groupMeta: ProcessGroup_Meta; lang: Language;
 - `type === 'outcome'`: 成果ID（インジゴ）/ テキスト / 達成するBP一覧 / 生成する情報項目一覧
 - `type === 'item'`  : 情報項目ID（エメラルド）/ 名称 / 説明 / 特性リスト
 
-### 4.8 GroupFilterBar（共通コンポーネント）
+### 4.8 VModelView（FR-6）
+
+**責務:** SYS/SWE/HWEのプロセスをV字に固定配置し、対応関係を点線で示すReact Flowビュー
+
+```
+状態:
+  selectedProcess: Process | null   （クリックで選択されたプロセス）
+
+ロジック:
+  nodes/edges は buildVModelGraph(lang) で生成（useMemo）
+  nodesDraggable=false / nodesConnectable=false でインタラクションを読み取り専用に固定
+
+レンダリング:
+  左ペイン（flex-1）:
+    <ReactFlow fitView>
+      <Background> / <Controls> / <MiniMap>
+      <Panel position="top-left">   ← "← 仕様・設計フェーズ" ラベル
+      <Panel position="top-center"> ← "Vモデル（SYS / SWE / HWE）" タイトル
+      <Panel position="top-right">  ← "統合・検証フェーズ →" ラベル
+  右ペイン（w-80, selectedProcess !== null 時）:
+    <DetailPanel onSelectProcess={p => VMODEL_PROCESS_IDS.has(p.id) ? setSelected(p) : no-op}>
+    ※ Vモデルに含まれないプロセスへのナビゲーションは無視する
+
+副作用:
+  navigateTo（FR-5ジャンプ）受信時:
+    processId が VMODEL_PROCESS_IDS に含まれる場合のみ selectedProcess を更新
+    onNavConsumed() を呼び出す
+```
+
+#### vmodelLayout.ts の設計
+
+```typescript
+// V字左辺（上→下）: SYS.1, SYS.2, SYS.3, SWE.1, SWE.2, SWE.3, HWE.1, HWE.2
+// V字右辺（下→上）: HWE.3, HWE.4, SWE.4, SWE.5, SWE.6, SYS.4, SYS.5
+// VAL.1: x=920, y=0（SYS.5 と同じ高さ）
+
+// 固定座標
+LEFT_X = 60  // 左辺ノードの x
+RIGHT_X = 700 // 右辺ノードの x
+STEP_Y = 120  // ノード間隔（左辺は 0, 120, 240, … で均等配置）
+
+// 右辺 Y = maxY × (total - 1 - index) / (total - 1)
+// → 配列先頭(HWE.3)が最下部(y=840)、末尾(SYS.5)が最上部(y=0)
+
+// 対応線: type:'straight', stroke:'#6b7280', strokeDasharray:'4 4'
+// ProcessNode を再利用（RelationshipGraph/CustomNodes.tsx）
+export const VMODEL_PROCESS_IDS: Set<string>  // ナビゲーション可否判定に使用
+```
+
+### 4.9 GroupFilterBar（共通コンポーネント）
 
 **責務:** プロセスグループの表示絞り込みトグルUI
 
@@ -397,7 +451,7 @@ Props: { selected: Set<ProcessGroup>; lang: Language; onChange: (next: Set<Proce
 // ProcessMapView / RelationshipGraphView（process level）で共用
 ```
 
-### 4.10 GlobalSearch（共通コンポーネント）
+### 4.10 GlobalSearch（共通コンポーネント）  <!-- 旧4.10 -->
 
 **責務:** ヘッダー常設の横断検索ボックスと結果ドロップダウン
 
