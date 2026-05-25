@@ -19,6 +19,7 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
   const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
+  const [highlightProcessId, setHighlightProcessId] = useState<string | null>(null)
 
   // グローバル検索からのナビゲーション処理
   useEffect(() => {
@@ -27,12 +28,19 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
     if (p) {
       setActiveGroups((prev) => new Set([...prev, p.group]))
       setSelected(p)
+      setHighlightProcessId(p.id)
+      setTimeout(() => setHighlightProcessId(null), 2000)
     }
     onNavConsumed?.()
   }, [navigateTo, onNavConsumed])
 
   const handleSelect = (p: Process) => {
     setSelected((prev) => (prev?.id === p.id ? null : p))
+  }
+
+  const handleSelectFromPanel = (p: Process) => {
+    setActiveGroups((prev) => new Set([...prev, p.group]))
+    setSelected(p)
   }
 
   const handleGroupChange = (next: Set<ProcessGroup>) => {
@@ -67,6 +75,7 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
                         process={p}
                         groupMeta={group}
                         isSelected={selected?.id === p.id}
+                        isHighlighted={highlightProcessId === p.id}
                         lang={lang}
                         onClick={handleSelect}
                       />
@@ -88,6 +97,7 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
                 groupMeta={groupMeta}
                 lang={lang}
                 onClose={() => setSelected(null)}
+                onSelectProcess={handleSelectFromPanel}
               />
             </div>
           )

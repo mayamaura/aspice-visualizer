@@ -1,15 +1,16 @@
 import { X, ChevronDown, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Process, ProcessGroup_Meta, Characteristic } from '../../types/aspice'
 import type { Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
-import { INFORMATION_ITEMS } from '../../data'
+import { INFORMATION_ITEMS, ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
 
 interface Props {
   process: Process
   groupMeta: ProcessGroup_Meta
   lang: Language
   onClose: () => void
+  onSelectProcess?: (p: Process) => void
 }
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -63,7 +64,23 @@ function CharacteristicList({ characteristics, lang }: { characteristics: Charac
   )
 }
 
-export function DetailPanel({ process, groupMeta, lang, onClose }: Props) {
+export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess }: Props) {
+  const relatedProcesses = useMemo(() => {
+    const myItemIds = new Set(process.output_information_items.map((o) => o.id))
+    return (ALL_PROCESSES as Process[])
+      .filter(
+        (p) =>
+          p.id !== process.id &&
+          p.output_information_items.some((o) => myItemIds.has(o.id))
+      )
+      .map((p) => ({
+        process: p,
+        sharedItems: p.output_information_items
+          .filter((o) => myItemIds.has(o.id))
+          .map((o) => o.id),
+      }))
+  }, [process])
+
   return (
     <div className="flex flex-col h-full bg-gray-950 border-l border-gray-800">
       {/* Header */}
@@ -159,6 +176,38 @@ export function DetailPanel({ process, groupMeta, lang, onClose }: Props) {
             })}
           </div>
         </Section>
+
+        {/* Related Processes */}
+        {relatedProcesses.length > 0 && (
+          <Section
+            title={lang === 'en' ? `Related Processes (${relatedProcesses.length})` : `関連プロセス (${relatedProcesses.length})`}
+            defaultOpen={false}
+          >
+            <div className="space-y-2">
+              {relatedProcesses.map(({ process: rp, sharedItems }) => {
+                const rpGroup = PROCESS_GROUPS.find((g) => g.id === rp.group)!
+                return (
+                  <div key={rp.id} className="bg-gray-900 rounded-lg p-3">
+                    <button
+                      onClick={() => onSelectProcess?.(rp)}
+                      className={`flex gap-2 items-baseline w-full text-left hover:opacity-80 transition-opacity ${onSelectProcess ? 'cursor-pointer' : 'cursor-default'}`}
+                    >
+                      <span className={`font-mono text-xs font-bold shrink-0 ${rpGroup.textColor}`}>{rp.id}</span>
+                      <span className="text-sm text-gray-200 leading-snug">{t(rp.name, lang)}</span>
+                    </button>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {sharedItems.map((itemId) => (
+                        <span key={itemId} className="text-xs bg-gray-800 text-green-500 px-1.5 py-0.5 rounded font-mono">
+                          {itemId}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Section>
+        )}
       </div>
     </div>
   )
