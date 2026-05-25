@@ -31,7 +31,7 @@ export function GroupNode({ data }: { data: GroupNodeData }) {
   )
 }
 
-interface ProcessNodeData {
+export interface ProcessNodeData {
   label: string
   name: string
   group: string
@@ -39,6 +39,9 @@ interface ProcessNodeData {
   border: string
   isRoot?: boolean
   showHandles?: boolean
+  purpose?: string
+  outcomeCount?: number
+  bpCount?: number
 }
 
 export function ProcessNode({ data }: { data: ProcessNodeData }) {

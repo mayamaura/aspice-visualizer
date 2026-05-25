@@ -9,6 +9,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 
 import { GroupNode, ProcessNode, OutcomeNode, BPNode, ItemNode } from './CustomNodes'
+import type { ProcessNodeData } from './CustomNodes'
 import {
   buildProcessLevelGraph,
   buildDetailLevelGraph,
@@ -21,6 +22,8 @@ import { GroupFilterBar } from '../common/GroupFilterBar'
 import { EdgeTypeFilterBar, type EdgeType } from '../common/EdgeTypeFilterBar'
 import { ItemDetailPanel } from './ItemDetailPanel'
 import { BPLevelDetailPanel, type SelectedBPNode } from './BPLevelDetailPanel'
+import { ProcessHoverTooltip } from './ProcessHoverTooltip'
+import { GraphExportButton } from './GraphExportButton'
 import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
@@ -33,6 +36,14 @@ const nodeTypes = {
   outcomeNode: OutcomeNode,
   bpNode: BPNode,
   itemNode: ItemNode,
+}
+
+interface TooltipInfo {
+  purpose: string
+  outcomeCount: number
+  bpCount: number
+  x: number
+  y: number
 }
 
 interface Props {
@@ -53,7 +64,9 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
   )
   const [selectedBPNode, setSelectedBPNode] = useState<SelectedBPNode | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  const [tooltipInfo, setTooltipInfo] = useState<TooltipInfo | null>(null)
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const graphContainerRef = useRef<HTMLDivElement>(null)
 
   const { nodes: initNodes, edges: initEdges } = useMemo(() => {
     if (level === 'process') {
@@ -134,18 +147,35 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
     }
   }, [level, focusItemId, focusProcess])
 
-  const onNodeMouseEnter: NodeMouseHandler = useCallback((_evt, node) => {
-    if (level !== 'bp' && level !== 'item') return
+  const onNodeMouseEnter: NodeMouseHandler = useCallback((evt, node) => {
     if (hoverLeaveTimer.current !== null) {
       clearTimeout(hoverLeaveTimer.current)
       hoverLeaveTimer.current = null
     }
-    setHoveredNodeId(node.id)
+
+    if (level === 'bp' || level === 'item') {
+      setHoveredNodeId(node.id)
+      return
+    }
+
+    if (level === 'process' && node.type === 'processNode') {
+      const d = node.data as ProcessNodeData
+      if (d.purpose !== undefined) {
+        setTooltipInfo({
+          purpose: d.purpose,
+          outcomeCount: d.outcomeCount ?? 0,
+          bpCount: d.bpCount ?? 0,
+          x: evt.clientX,
+          y: evt.clientY,
+        })
+      }
+    }
   }, [level])
 
   const onNodeMouseLeave: NodeMouseHandler = useCallback(() => {
     hoverLeaveTimer.current = setTimeout(() => {
       setHoveredNodeId(null)
+      setTooltipInfo(null)
       hoverLeaveTimer.current = null
     }, 80)
   }, [])
@@ -224,6 +254,9 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
           </button>
         </div>
 
+        {/* Export button */}
+        <GraphExportButton containerRef={graphContainerRef} lang={lang} />
+
         {/* Focus process badge (BP level) */}
         {level === 'bp' && focusProcess && groupMeta && (
           <div className="flex items-center gap-2">
@@ -270,7 +303,7 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
         {/* Hint text */}
         {level === 'process' && (
           <span className="ml-auto text-xs text-gray-500">
-            {lang === 'en' ? 'Click a node to drill down' : 'ノードをクリックして展開'}
+            {lang === 'en' ? 'Hover to preview · Click to drill down' : 'ホバーでプレビュー・クリックで展開'}
           </span>
         )}
         {level === 'item' && !focusItemId && (
@@ -290,9 +323,9 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
         )}
       </div>
 
-      {/* Graph + Item Detail Panel */}
+      {/* Graph + Detail Panel */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1">
+        <div ref={graphContainerRef} className="flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -328,6 +361,18 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
           <ItemDetailPanel item={focusItem} lang={lang} onClose={handleBackToItemList} />
         )}
       </div>
+
+      {/* Process hover tooltip (process level only) */}
+      {tooltipInfo && (
+        <ProcessHoverTooltip
+          purpose={tooltipInfo.purpose}
+          outcomeCount={tooltipInfo.outcomeCount}
+          bpCount={tooltipInfo.bpCount}
+          x={tooltipInfo.x}
+          y={tooltipInfo.y}
+          lang={lang}
+        />
+      )}
     </div>
   )
 }

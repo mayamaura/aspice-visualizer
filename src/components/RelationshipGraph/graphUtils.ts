@@ -49,6 +49,12 @@ function processNodeColor(group: string) {
   return { bg: GROUP_COLOR[group] ?? '#1f2937', border: GROUP_BORDER[group] ?? '#4b5563' }
 }
 
+function firstSentence(text: string): string {
+  const m = text.match(/^[^。.!?！？]+[。.!?！？]/)
+  const s = m ? m[0].trim() : text
+  return s.length > 150 ? s.slice(0, 150) + '…' : s
+}
+
 function applyDagreLayout(
   nodes: Node[],
   edges: Edge[],
@@ -268,6 +274,9 @@ export function buildProcessLevelGraph(
           bg,
           border,
           showHandles: false,
+          purpose: firstSentence(t(p.purpose, lang)),
+          outcomeCount: p.outcomes.length,
+          bpCount: p.base_practices.length,
         },
       })
     }
