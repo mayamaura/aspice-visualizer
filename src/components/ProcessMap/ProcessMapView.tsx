@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Process, ProcessGroup } from '../../types/aspice'
 import { ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
 import { ProcessCard } from './ProcessCard'
@@ -6,16 +6,30 @@ import { DetailPanel } from './DetailPanel'
 import { GroupFilterBar } from '../common/GroupFilterBar'
 import { t } from '../../store/languageStore'
 import type { Language } from '../../types/aspice'
+import type { NavigateTarget } from '../../utils/searchUtils'
 
 interface Props {
   lang: Language
+  navigateTo?: NavigateTarget | null
+  onNavConsumed?: () => void
 }
 
-export function ProcessMapView({ lang }: Props) {
+export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
   const [selected, setSelected] = useState<Process | null>(null)
   const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
+
+  // グローバル検索からのナビゲーション処理
+  useEffect(() => {
+    if (!navigateTo || navigateTo.type !== 'process') return
+    const p = (ALL_PROCESSES as Process[]).find((proc) => proc.id === navigateTo.processId)
+    if (p) {
+      setActiveGroups((prev) => new Set([...prev, p.group]))
+      setSelected(p)
+    }
+    onNavConsumed?.()
+  }, [navigateTo, onNavConsumed])
 
   const handleSelect = (p: Process) => {
     setSelected((prev) => (prev?.id === p.id ? null : p))
@@ -23,7 +37,6 @@ export function ProcessMapView({ lang }: Props) {
 
   const handleGroupChange = (next: Set<ProcessGroup>) => {
     setActiveGroups(next)
-    // 選択中プロセスのグループが非表示になったらパネルを閉じる
     if (selected && !next.has(selected.group)) setSelected(null)
   }
 
@@ -39,7 +52,7 @@ export function ProcessMapView({ lang }: Props) {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {visibleGroups.map((group) => {
-              const processes = ALL_PROCESSES.filter((p) => p.group === group.id)
+              const processes = (ALL_PROCESSES as Process[]).filter((p) => p.group === group.id)
               if (processes.length === 0) return null
               return (
                 <div key={group.id} className={`rounded-xl border ${group.borderColor} overflow-hidden`}>

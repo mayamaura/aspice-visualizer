@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.6  
-**最終更新:** 2026-05-23  
+**バージョン:** 1.7  
+**最終更新:** 2026-05-26  
 
 ---
 
@@ -72,10 +72,13 @@ AutomotiveSpiceVisualizer/
 │   │   ├── aspiceLoader.ts   ← JSON → 内部型への変換（JSON更新時の単一修正点）
 │   │   ├── index.ts          ← ALL_PROCESSES / INFORMATION_ITEMS / PROCESS_GROUPS を re-export
 │   │   └── processGroups.ts  ← プロセスグループUIメタ情報（12グループ）
+│   ├── utils/
+│   │   └── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
 │   └── components/
 │       ├── common/
 │       │   ├── GroupFilterBar.tsx        ← グループフィルター（ProcessMap/Graph共用）
-│       │   └── EdgeTypeFilterBar.tsx     ← エッジ種別フィルター（Graph BP levelのみ）
+│       │   ├── EdgeTypeFilterBar.tsx     ← エッジ種別フィルター（Graph BP levelのみ）
+│       │   └── GlobalSearch.tsx          ← グローバル検索ボックス（ヘッダー常設）
 │       ├── ProcessMap/
 │       │   ├── ProcessMapView.tsx  ← プロセスマップ全体レイアウト
 │       │   ├── ProcessCard.tsx     ← プロセスカード1件
@@ -160,14 +163,19 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
 
 ```
 状態:
-  view: 'map' | 'graph'  （初期値: 'map'）
-  lang: Language          （useLang() フック経由）
+  view: 'map' | 'graph'           （初期値: 'map'）
+  lang: Language                   （useLang() フック経由）
+  pendingNav: NavigateTarget | null （グローバル検索からのジャンプ先、消費後null）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ / EN/JAトグル
+  <header>  ← ASPICE 4.0バッジ / ビュータブ / GlobalSearch / EN/JAトグル
   <main>
-    view==='map'   → <ProcessMapView lang={lang} />
-    view==='graph' → <RelationshipGraphView lang={lang} />
+    view==='map'   → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
+    view==='graph' → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
+
+handleNavigate(target):
+  target.type==='process' → setView('map'), setPendingNav(target)
+  target.type==='bp'|'item' → setView('graph'), setPendingNav(target)
 ```
 
 ### 4.2 ProcessMapView
@@ -368,6 +376,51 @@ Props: { selected: Set<ProcessGroup>; lang: Language; onChange: (next: Set<Proce
 // 「All」ボタン + グループごとのチップ
 // 最低1グループ選択を強制（最後の1つは削除不可）
 // ProcessMapView / RelationshipGraphView（process level）で共用
+```
+
+### 4.10 GlobalSearch（共通コンポーネント）
+
+**責務:** ヘッダー常設の横断検索ボックスと結果ドロップダウン
+
+```typescript
+Props: { lang: Language; onNavigate: (target: NavigateTarget) => void }
+
+状態:
+  query: string          // 入力テキスト
+  results: SearchResult[]// デバウンス200ms後の検索結果
+  open: boolean          // ドロップダウン表示フラグ
+
+挙動:
+  - 結果をカテゴリ別（process / bp / item）にグルーピング表示
+  - 結果クリック → onNavigate(target) を呼び、query/open をリセット
+  - ESC / 外部クリックでドロップダウンを閉じる
+  - 結果20件上限に達した場合は注記を表示
+```
+
+### 4.11 searchUtils.ts（ユーティリティ）
+
+**責務:** 全データを横断する検索ロジックと NavigateTarget 型定義
+
+```typescript
+// 検索結果の型
+type SearchResultType = 'process' | 'bp' | 'item'
+
+interface SearchResult {
+  type: SearchResultType
+  id: string           // プロセスID / BP ID / 情報項目ID
+  label: string        // 表示名（"{id} {name}"形式）
+  sublabel: string     // 所属情報（グループ名 / 親プロセスID）
+  processId?: string   // type='bp' の場合の親プロセスID
+}
+
+// ナビゲーション先の型（App.tsx と各ビューが共用）
+type NavigateTarget =
+  | { type: 'process'; processId: string }
+  | { type: 'bp'; processId: string; bpId: string }
+  | { type: 'item'; itemId: string }
+
+// 検索実行（EN+JA両方の全フィールドにマッチ、最大20件）
+function search(query: string, lang: Language): SearchResult[]
 ```
 
 ### 4.9 EdgeTypeFilterBar（共通コンポーネント）

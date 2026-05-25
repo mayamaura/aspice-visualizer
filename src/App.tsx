@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Map, GitBranch } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
+import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
+import type { NavigateTarget } from './utils/searchUtils'
 
 type ViewId = 'map' | 'graph'
 
@@ -14,6 +16,18 @@ const VIEWS = [
 export default function App() {
   const [view, setView] = useState<ViewId>('map')
   const [lang, toggleLang] = useLang()
+  const [pendingNav, setPendingNav] = useState<NavigateTarget | null>(null)
+
+  const handleNavigate = (target: NavigateTarget) => {
+    if (target.type === 'process') {
+      setView('map')
+    } else {
+      setView('graph')
+    }
+    setPendingNav(target)
+  }
+
+  const handleNavConsumed = () => setPendingNav(null)
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100">
@@ -44,6 +58,9 @@ export default function App() {
           ))}
         </nav>
 
+        {/* Global Search */}
+        <GlobalSearch lang={lang} onNavigate={handleNavigate} />
+
         <div className="ml-auto flex items-center gap-3">
           {/* Language Toggle */}
           <button
@@ -54,17 +71,17 @@ export default function App() {
             <span className="text-gray-600">/</span>
             <span className={lang === 'ja' ? 'text-white' : 'text-gray-500'}>JA</span>
           </button>
-
-          <div className="text-xs text-gray-600">
-            {lang === 'en' ? 'Core processes: SYS + SWE' : 'コアプロセス: SYS + SWE'}
-          </div>
         </div>
       </header>
 
       {/* View Content */}
       <main className="flex-1 overflow-hidden">
-        {view === 'map' && <ProcessMapView lang={lang} />}
-        {view === 'graph' && <RelationshipGraphView lang={lang} />}
+        {view === 'map' && (
+          <ProcessMapView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+        )}
+        {view === 'graph' && (
+          <RelationshipGraphView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+        )}
       </main>
     </div>
   )

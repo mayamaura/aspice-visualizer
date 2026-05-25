@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // nodes/edges are fully controlled via useMemo — no useNodesState/useEdgesState needed
 import ReactFlow, {
   Background,
@@ -25,6 +25,7 @@ import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
 import { INFORMATION_ITEMS } from '../../data'
+import type { NavigateTarget } from '../../utils/searchUtils'
 
 const nodeTypes = {
   groupNode: GroupNode,
@@ -36,9 +37,11 @@ const nodeTypes = {
 
 interface Props {
   lang: Language
+  navigateTo?: NavigateTarget | null
+  onNavConsumed?: () => void
 }
 
-export function RelationshipGraphView({ lang }: Props) {
+export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props) {
   const [level, setLevel] = useState<GraphLevel>('process')
   const [focusProcess, setFocusProcess] = useState<Process | null>(null)
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
@@ -156,6 +159,26 @@ export function RelationshipGraphView({ lang }: Props) {
   const handleBackToItemList = () => {
     setFocusItemId(null)
   }
+
+  // グローバル検索からのナビゲーション処理
+  useEffect(() => {
+    if (!navigateTo) return
+    if (navigateTo.type === 'bp') {
+      const p = (ALL_PROCESSES as Process[]).find((proc) => proc.id === navigateTo.processId)
+      if (p) {
+        setFocusProcess(p)
+        setLevel('bp')
+        setSelectedBPNode(null)
+        // BP詳細パネルを開く
+        const bp = p.base_practices.find((b) => b.id === navigateTo.bpId)
+        if (bp) setSelectedBPNode({ type: 'bp', bp, process: p })
+      }
+    } else if (navigateTo.type === 'item') {
+      setLevel('item')
+      setFocusItemId(navigateTo.itemId)
+    }
+    onNavConsumed?.()
+  }, [navigateTo, onNavConsumed])
 
   const groupMeta = focusProcess ? PROCESS_GROUPS.find((g) => g.id === focusProcess.group) : null
   const focusItem = focusItemId ? INFORMATION_ITEMS.find((i) => i.id === focusItemId) : null
