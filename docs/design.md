@@ -1,7 +1,7 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 1.8  
+**バージョン:** 1.9  
 **最終更新:** 2026-05-26  
 
 ---
@@ -30,6 +30,7 @@
 | ビルドツール | Vite | 6.x |
 | グラフ描画 | React Flow (reactflow) | 11.x |
 | グラフレイアウト | @dagrejs/dagre | 1.x |
+| PNG エクスポート | html-to-image | 1.x |
 | スタイル | Tailwind CSS | 3.x |
 | アイコン | lucide-react | 0.469.x |
 | データ | aspice_models.json（静的JSON） | — |
@@ -87,6 +88,8 @@ AutomotiveSpiceVisualizer/
 │           ├── RelationshipGraphView.tsx ← グラフビュー全体
 │           ├── CustomNodes.tsx           ← React Flowカスタムノード
 │           ├── graphUtils.ts             ← ノード/エッジ生成ロジック
+│           ├── GraphExportButton.tsx     ← PNGエクスポートボタン（html-to-image使用）
+│           ├── ProcessHoverTooltip.tsx   ← プロセスノードホバー時ツールチップ
 │           ├── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
 │           └── BPLevelDetailPanel.tsx    ← BP/Outcome/情報項目詳細サイドパネル（BP/情報項目レベル）
 ├── index.html
@@ -257,16 +260,22 @@ Props: { process, groupMeta, lang, onClose, onSelectProcess? }
   onNodeClick (level==='item', !focusItemId) → focusItemId=クリック情報項目ID に設定
   「戻る」ボタン（BP level）  → level='process', focusProcess=null, selectedBPNode=null
   「戻る」ボタン（item level） → focusItemId=null（情報項目一覧に戻る）
-  onNodeMouseEnter (level==='bp' || level==='item') → 接続ノード・エッジを強調
+  onNodeMouseEnter (level==='bp' || level==='item')        → 接続ノード・エッジを強調（hoveredNodeId）
+  onNodeMouseEnter (level==='process', processNode) → <ProcessHoverTooltip> 表示
+    ツールチップデータ: node.data.purpose（先頭1文）/ node.data.outcomeCount / node.data.bpCount
 
 レンダリング:
   <GroupFilterBar>    （level==='process' 時のみ、上部）
-  ツールバー: レベルタブ（3タブ）/ フォーカスプロセスバッジ（level==='bp' 時）
+  ツールバー: レベルタブ（3タブ）/ <GraphExportButton>（常時）
+             / フォーカスプロセスバッジ（level==='bp' 時）
              / フォーカス情報項目バッジ（level==='item' && focusItemId 時）
              / <EdgeTypeFilterBar>（level==='bp' 時のみ）
-  <ReactFlow>
+  <div ref=graphContainerRef>
+    <ReactFlow>
+  </div>
   <BPLevelDetailPanel> （level==='bp' && selectedBPNode !== null 時、グラフ右側）
   <ItemDetailPanel>    （level==='item' && focusItem !== null 時、グラフ右側）
+  <ProcessHoverTooltip> （tooltipInfo !== null 時、position: fixed、マウス座標+16px）
 ```
 
 ### 4.6 CustomNodes（React Flowカスタムノード）
@@ -274,7 +283,7 @@ Props: { process, groupMeta, lang, onClose, onSelectProcess? }
 | コンポーネント | ノード種別 | 用途 |
 |---|---|---|
 | `GroupNode` | groupNode | プロセス群コンテナ（枠＋ラベル）。プロセスレベルのみ使用 |
-| `ProcessNode` | processNode | プロセスノード（グループ色）。プロセスレベルでは `parentId` を持ち GroupNode の子として配置 |
+| `ProcessNode` | processNode | プロセスノード（グループ色）。プロセスレベルでは `parentId` を持ち GroupNode の子として配置。`data.purpose`（目的先頭1文）/ `data.outcomeCount` / `data.bpCount` をホバーツールチップ用に保持 |
 | `OutcomeNode` | outcomeNode | プロセス成果ノード（インジゴ） |
 | `BPNode` | bpNode | 基本プラクティスノード（グループ色薄め） |
 | `ItemNode` | itemNode | 情報項目ノード（出力=緑 / 入力=青） |
