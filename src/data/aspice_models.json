@@ -10580,6 +10580,44 @@
       ]
     },
     {
+      "id": "03-03",
+      "name": {
+        "en": "Benchmarking data",
+        "ja": "ベンチマークデータ"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Results of measurement of current performance that allow comparison against historical or target values",
+          "ja": "過去の値または目標値に照らし合わせた比較を可能にする現在のパフォーマンスの測定結果"
+        },
+        {
+          "type": "bullet",
+          "en": "Relates to key goals/process/product/market need criteria and information to be benchmarked",
+          "ja": "ベンチマークにすべき主要な目標、プロセス、製品、およびマーケットニーズの基準および情報と関連している"
+        }
+      ]
+    },
+    {
+      "id": "03-04",
+      "name": {
+        "en": "Customer satisfaction data",
+        "ja": "顧客満足度データ"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Determines levels of customer satisfaction with products and services",
+          "ja": "製品およびサービスに対する顧客満足度のレベルを決定している"
+        },
+        {
+          "type": "bullet",
+          "en": "Mechanism to collect data on customer satisfaction:\n- results of field performance data\n- results of customer satisfaction survey\n- interview notes\n- meeting minutes from customer meetings",
+          "ja": "顧客満足度に対するデータを収集するための仕組み\n- フィールド実施データの結果\n- 顧客満足度調査の結果\n- インタビューのメモ\n- 顧客ミーティングの議事録"
+        }
+      ]
+    },
+    {
       "id": "03-06",
       "name": {
         "en": "Process performance information",
@@ -10681,6 +10719,45 @@
           "type": "bullet",
           "en": "In case of semiconductor development: mask data (GDS2)",
           "ja": "半導体開発の場合：マスクデータ（ GDS2 ）"
+        }
+      ]
+    },
+    {
+      "id": "04-02",
+      "name": {
+        "en": "Domain architecture",
+        "ja": "ドメイン アーキテクチャ"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Identified domain model(s) tailored from",
+          "ja": "テーラリング済の識別したドメインモデル"
+        },
+        {
+          "type": "bullet",
+          "en": "Identified asset specifications",
+          "ja": "識別した資産の明細"
+        },
+        {
+          "type": "bullet",
+          "en": "Definition of boundaries and relationships with other domains (Domain Interface Specification)",
+          "ja": "他のドメインとの境界および関係の定義（ドメインインタフェース仕様）"
+        },
+        {
+          "type": "bullet",
+          "en": "Identification of domain vocabulary",
+          "ja": "ドメイン用語の識別"
+        },
+        {
+          "type": "bullet",
+          "en": "Identification of the domain representation standard",
+          "ja": "ドメインの表現標準の識別"
+        },
+        {
+          "type": "bullet",
+          "en": "Provides an overview of the functions, features capabilities and concepts in the domains",
+          "ja": "ドメインにおける機能、フィーチャー、能力、および考え方の概要を提供している"
         }
       ]
     },
@@ -11357,53 +11434,6 @@
       ]
     },
     {
-      "id": "15-57",
-      "name": {
-        "en": "Quantitative process analysis results",
-        "ja": "定量的なプロセス 分析結果"
-      },
-      "characteristics": [
-        {
-          "type": "bullet",
-          "en": "Deviations, and distributions, of the quantitative performance of individual process instances performance from the established quantitative control limits (special causes of variations)",
-          "ja": "確立された定量的な制御限界に対する個々のプロセスインスタンス（パフォーマンス）の定量的なパフォーマンスの偏差および分布（特殊変動原因）"
-        }
-      ]
-    },
-    {
-      "id": "08-66",
-      "name": {
-        "en": "Measures against deviations in quantitative process analysis",
-        "ja": "定量的なプロセス 分析における逸脱 に対する対策"
-      },
-      "characteristics": [
-        {
-          "type": "bullet",
-          "en": "Definition of counter measures actions to address each assignable cause of special causes of variation, or common causes of variation",
-          "ja": "特殊変動原因または共通変動原因における突き止められる各原因に対処するための対策の定義"
-        },
-        {
-          "type": "bullet",
-          "en": "Effective implementation of these counter measures",
-          "ja": "これらの対策の効果的な実装"
-        }
-      ]
-    },
-    {
-      "id": "15-58",
-      "name": {
-        "en": "Common cause of variation analysis results",
-        "ja": "共通変動原因の 分析結果"
-      },
-      "characteristics": [
-        {
-          "type": "bullet",
-          "en": "Identification of common causes\n- deviations of the quantitative performance of all process instances from the established quantitative control limits\n- distributions of the quantitative performance of all process instances within established quantitative control limits",
-          "ja": "共通原因の識別\n- 全プロセスインスタンスの定量的なパフォーマンスにおける、確立された定量的な制御限界からの偏差\n- 全プロセスインスタンスの定量的なパフォーマンスにおける、確立された定量的な制御限界内での分布"
-        }
-      ]
-    },
-    {
       "id": "08-53",
       "name": {
         "en": "Scope of work",
@@ -11757,6 +11787,25 @@
           "type": "bullet",
           "en": "The ML training and validation approach may additionally include robustification methods like random dropout",
           "ja": "ML トレーニングおよびバリデーションのアプローチには、さらに、無作為のドロップアウトのような堅牢化手法を含む場合がある。"
+        }
+      ]
+    },
+    {
+      "id": "08-66",
+      "name": {
+        "en": "Measures against deviations in quantitative process analysis",
+        "ja": "定量的なプロセス 分析における逸脱 に対する対策"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Definition of counter measures actions to address each assignable cause of special causes of variation, or common causes of variation",
+          "ja": "特殊変動原因または共通変動原因における突き止められる各原因に対処するための対策の定義"
+        },
+        {
+          "type": "bullet",
+          "en": "Effective implementation of these counter measures",
+          "ja": "これらの対策の効果的な実装"
         }
       ]
     },
@@ -12959,6 +13008,34 @@
           "type": "bullet",
           "en": "Identification of baselines made",
           "ja": "設定されたベースラインの識別"
+        }
+      ]
+    },
+    {
+      "id": "15-57",
+      "name": {
+        "en": "Quantitative process analysis results",
+        "ja": "定量的なプロセス 分析結果"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Deviations, and distributions, of the quantitative performance of individual process instances performance from the established quantitative control limits (special causes of variations)",
+          "ja": "確立された定量的な制御限界に対する個々のプロセスインスタンス（パフォーマンス）の定量的なパフォーマンスの偏差および分布（特殊変動原因）"
+        }
+      ]
+    },
+    {
+      "id": "15-58",
+      "name": {
+        "en": "Common cause of variation analysis results",
+        "ja": "共通変動原因の 分析結果"
+      },
+      "characteristics": [
+        {
+          "type": "bullet",
+          "en": "Identification of common causes\n- deviations of the quantitative performance of all process instances from the established quantitative control limits\n- distributions of the quantitative performance of all process instances within established quantitative control limits",
+          "ja": "共通原因の識別\n- 全プロセスインスタンスの定量的なパフォーマンスにおける、確立された定量的な制御限界からの偏差\n- 全プロセスインスタンスの定量的なパフォーマンスにおける、確立された定量的な制御限界内での分布"
         }
       ]
     },
