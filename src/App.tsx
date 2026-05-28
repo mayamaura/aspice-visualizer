@@ -1,18 +1,20 @@
 import { useState } from 'react'
-import { Map, GitBranch, Network } from 'lucide-react'
+import { Map, GitBranch, Network, Grid2x2 } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
 import { VModelView } from './components/VModelView/VModelView'
+import { MatrixView } from './components/MatrixView/MatrixView'
 import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
 import type { NavigateTarget } from './utils/searchUtils'
 
-type ViewId = 'map' | 'graph' | 'vmodel'
+type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix'
 
 const VIEWS = [
   { id: 'map' as ViewId, icon: Map, labelEn: 'Process Map', labelJa: 'プロセスマップ' },
   { id: 'graph' as ViewId, icon: GitBranch, labelEn: 'Relationship Graph', labelJa: 'リレーションシップグラフ' },
   { id: 'vmodel' as ViewId, icon: Network, labelEn: 'V-Model', labelJa: 'Vモデル' },
+  { id: 'matrix' as ViewId, icon: Grid2x2, labelEn: 'Matrix', labelJa: 'マトリクス' },
 ]
 
 export default function App() {
@@ -86,6 +88,9 @@ export default function App() {
         )}
         {view === 'vmodel' && (
           <VModelView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+        )}
+        {view === 'matrix' && (
+          <MatrixView lang={lang} onNavigate={handleNavigate} />
         )}
       </main>
     </div>
