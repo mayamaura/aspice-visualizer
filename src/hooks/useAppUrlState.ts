@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { GraphLevel } from '../components/RelationshipGraph/graphUtils'
 
-type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix'
+type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
 
 export interface AppUrlState {
   view: ViewId
   process: string | null
   level: GraphLevel
   focus: string | null
+  flowGroup: string | null
 }
 
-const VALID_VIEWS: ViewId[] = ['map', 'graph', 'vmodel', 'matrix']
+const VALID_VIEWS: ViewId[] = ['map', 'graph', 'vmodel', 'matrix', 'flow']
 const VALID_LEVELS: GraphLevel[] = ['process', 'bp', 'item']
 
 function parseUrl(): AppUrlState {
@@ -22,6 +23,7 @@ function parseUrl(): AppUrlState {
     process: p.get('process'),
     level: VALID_LEVELS.includes(level) ? level : 'process',
     focus: p.get('focus'),
+    flowGroup: p.get('flowgroup'),
   }
 }
 
@@ -31,6 +33,7 @@ function toSearch(state: AppUrlState): string {
   if (state.process) p.set('process', state.process)
   if (state.level !== 'process') p.set('level', state.level)
   if (state.focus) p.set('focus', state.focus)
+  if (state.flowGroup) p.set('flowgroup', state.flowGroup)
   const qs = p.toString()
   return qs ? `?${qs}` : window.location.pathname
 }
@@ -71,5 +74,14 @@ export function useAppUrlState() {
     })
   }, [])
 
-  return { url, setView, setProcess, setGraphState }
+  // 成果物フロービューの選択グループ変更は replaceState
+  const setFlowState = useCallback((flowGroup: string | null) => {
+    setUrl(prev => {
+      const next: AppUrlState = { ...prev, flowGroup }
+      history.replaceState(null, '', toSearch(next))
+      return next
+    })
+  }, [])
+
+  return { url, setView, setProcess, setGraphState, setFlowState }
 }

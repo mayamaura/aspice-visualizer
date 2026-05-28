@@ -1,25 +1,27 @@
 import { useState } from 'react'
-import { Map, GitBranch, Network, Grid2x2 } from 'lucide-react'
+import { Map, GitBranch, Network, Grid2x2, Workflow } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
 import { VModelView } from './components/VModelView/VModelView'
 import { MatrixView } from './components/MatrixView/MatrixView'
+import { ArtifactFlowView } from './components/ArtifactFlowView/ArtifactFlowView'
 import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
 import { useAppUrlState } from './hooks/useAppUrlState'
 import type { NavigateTarget } from './utils/searchUtils'
 
-type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix'
+type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
 
 const VIEWS = [
   { id: 'map' as ViewId, icon: Map, labelEn: 'Process Map', labelJa: 'プロセスマップ' },
   { id: 'graph' as ViewId, icon: GitBranch, labelEn: 'Relationship Graph', labelJa: 'リレーションシップグラフ' },
   { id: 'vmodel' as ViewId, icon: Network, labelEn: 'V-Model', labelJa: 'Vモデル' },
   { id: 'matrix' as ViewId, icon: Grid2x2, labelEn: 'Matrix', labelJa: 'マトリクス' },
+  { id: 'flow' as ViewId, icon: Workflow, labelEn: 'Artifact Flow', labelJa: '成果物フロー' },
 ]
 
 export default function App() {
-  const { url, setView, setProcess, setGraphState } = useAppUrlState()
+  const { url, setView, setProcess, setGraphState, setFlowState } = useAppUrlState()
   const view = url.view
   const [lang, toggleLang] = useLang()
   const [pendingNav, setPendingNav] = useState<NavigateTarget | null>(null)
@@ -106,6 +108,16 @@ export default function App() {
         )}
         {view === 'matrix' && (
           <MatrixView lang={lang} onNavigate={handleNavigate} />
+        )}
+        {view === 'flow' && (
+          <ArtifactFlowView
+            lang={lang}
+            navigateTo={pendingNav}
+            onNavConsumed={handleNavConsumed}
+            initialFlowGroup={url.flowGroup}
+            onFlowStateChange={setFlowState}
+            onNavigate={handleNavigate}
+          />
         )}
       </main>
     </div>

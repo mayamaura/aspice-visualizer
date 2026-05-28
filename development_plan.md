@@ -1,9 +1,10 @@
 # 新機能開発計画
 
 **対象:** Automotive SPICE 4.0 Process Visualizer  
-**計画バージョン:** 1.0  
-**作成日:** 2026-05-25  
-**対応要件:** FR-5 / FR-6 / FR-7 / FR-1-10/11 / FR-2-18/19 / NFR-6
+**計画バージョン:** 2.0  
+**作成日:** 2026-05-25（最終更新: 2026-05-29）  
+**対応要件:** FR-5 / FR-6 / FR-7 / FR-8 / FR-1-10/11 / FR-2-18/19 / NFR-6  
+**ステータス:** 全7フェーズ完了
 
 ---
 
@@ -16,9 +17,10 @@
 | 3 | グラフビュー補強 | FR-2-18, FR-2-19 | ★★☆ | S | ✅ 完了 |
 | 4 | Vモデルビュー | FR-6 | ★★★ | L | ✅ 完了 |
 | 5 | クロスリファレンスマトリクス | FR-7 | ★★★ | L | ✅ 完了 |
-| 6 | URL状態共有 | NFR-6 | ★☆☆ | M | 未着手 |
+| 6 | URL状態共有 | NFR-6 | ★☆☆ | M | ✅ 完了 |
+| 7 | 成果物フロービュー | FR-8 | ★★☆ | L | ✅ 完了 |
 
-フェーズ1を先に実装する理由: FR-1-11（検索からのハイライトジャンプ）と FR-5-3/4/5（検索結果クリック時のビュー遷移）はいずれも FR-5 のナビゲーションコールバック設計に依存するため。
+全フェーズ完了。現在のアプリは5ビュー（プロセスマップ / リレーションシップグラフ / Vモデル / マトリクス / 成果物フロー）とグローバル検索・URL状態共有を提供する。
 
 ---
 
@@ -347,8 +349,54 @@ Phase 5（マトリクス）
     ↓ 情報項目IDクリック → グラフ遷移（FR-7-6）は Phase 1 の onNavigate を利用
 
 Phase 6（URL状態）
-    → すべてのビューが揃った後に着手するとパラメータ設計が安定する
+    ↓ flowgroup パラメータ設計（Phase 7）は Phase 6 の useAppUrlState 拡張として実装
+
+Phase 7（成果物フロービュー）
+    → useAppUrlState に flowGroup を追加。App.tsx の setFlowState コールバックで同期
 ```
+
+---
+
+## Phase 7: 成果物フロービュー（FR-8）
+
+### ブランチ
+```
+feat/artifact-flow
+```
+
+### 目標
+プロセスグループが出力する情報項目の全体分布をサンキー図で俯瞰できるビューを追加する。グループレベルとプロセスレベルの2段階表示により、アセスメント計画のスコープ設定と成果物カバレッジ確認を支援する。
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/components/ArtifactFlowView/ArtifactFlowView.tsx` | 新規 | ビュー全体（ツールバー＋キャンバス＋詳細パネル） |
+| `src/components/ArtifactFlowView/SankeyCanvas.tsx` | 新規 | カスタムSVGサンキーレンダラー（ResizeObserver対応） |
+| `src/components/ArtifactFlowView/sankeyLayout.ts` | 新規 | 2カラムサンキーのノード位置・リンクパス座標計算 |
+| `src/components/ArtifactFlowView/sankeyData.ts` | 新規 | ALL_PROCESSES → SankeyNode/SankeyLink 変換 |
+| `src/components/ArtifactFlowView/FlowDetailPanel.tsx` | 新規 | リンク/ノードクリック時の右側詳細パネル |
+| `src/App.tsx` | 変更 | ViewId に `'flow'` 追加、タブ追加、ArtifactFlowView レンダリング |
+| `src/hooks/useAppUrlState.ts` | 変更 | `flowGroup` パラメータ追加、`setFlowState` コールバック追加 |
+| `docs/requirements.md` | 変更 | §2.8 FR-8 追加 |
+| `docs/design.md` | 変更 | §4.10 ArtifactFlowView 追加、URL状態表更新、ファイル構成更新 |
+
+### 設計上の決定事項
+
+- **カスタム SVG サンキー（ライブラリ追加なし）**: 2カラム固定構造のため `@nivo/sankey` 等は不要。~300KB の依存追加を回避
+- **`flowGroup` パラメータ分離**: グラフビューの `focus` パラメータとの衝突を避けるため専用パラメータを設ける
+- **依存関係**: useAppUrlState の `flowGroup` 型は `string | null`（ProcessGroup の検証は View 側で実施）
+
+### 受け入れ条件
+
+- [x] 「成果物フロー」タブをクリックするとサンキー図が表示される
+- [x] 12グループのノードと情報項目カテゴリノードが帯でつながれている
+- [x] 帯幅がカテゴリの情報項目数に比例している
+- [x] グループノードをクリックするとプロセスレベルに展開される
+- [x] リンクをクリックすると右側に情報項目一覧パネルが表示される
+- [x] 情報項目 ID クリックでリレーションシップグラフに遷移する
+- [x] EN/JA 切替でラベルが即時変わる
+- [x] `npm run build` が型エラーゼロで成功する
 
 ---
 
