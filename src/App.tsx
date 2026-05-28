@@ -6,6 +6,7 @@ import { VModelView } from './components/VModelView/VModelView'
 import { MatrixView } from './components/MatrixView/MatrixView'
 import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
+import { useAppUrlState } from './hooks/useAppUrlState'
 import type { NavigateTarget } from './utils/searchUtils'
 
 type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix'
@@ -18,7 +19,8 @@ const VIEWS = [
 ]
 
 export default function App() {
-  const [view, setView] = useState<ViewId>('map')
+  const { url, setView, setProcess, setGraphState } = useAppUrlState()
+  const view = url.view
   const [lang, toggleLang] = useLang()
   const [pendingNav, setPendingNav] = useState<NavigateTarget | null>(null)
 
@@ -81,10 +83,23 @@ export default function App() {
       {/* View Content */}
       <main className="flex-1 overflow-hidden">
         {view === 'map' && (
-          <ProcessMapView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+          <ProcessMapView
+            lang={lang}
+            navigateTo={pendingNav}
+            onNavConsumed={handleNavConsumed}
+            initialProcessId={url.process}
+            onProcessChange={setProcess}
+          />
         )}
         {view === 'graph' && (
-          <RelationshipGraphView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />
+          <RelationshipGraphView
+            lang={lang}
+            navigateTo={pendingNav}
+            onNavConsumed={handleNavConsumed}
+            initialLevel={url.level}
+            initialFocusId={url.focus}
+            onGraphStateChange={setGraphState}
+          />
         )}
         {view === 'vmodel' && (
           <VModelView lang={lang} navigateTo={pendingNav} onNavConsumed={handleNavConsumed} />

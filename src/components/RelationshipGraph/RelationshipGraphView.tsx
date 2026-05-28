@@ -50,12 +50,24 @@ interface Props {
   lang: Language
   navigateTo?: NavigateTarget | null
   onNavConsumed?: () => void
+  initialLevel?: GraphLevel
+  initialFocusId?: string | null
+  onGraphStateChange?: (level: GraphLevel, focusId: string | null) => void
 }
 
-export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props) {
-  const [level, setLevel] = useState<GraphLevel>('process')
-  const [focusProcess, setFocusProcess] = useState<Process | null>(null)
-  const [focusItemId, setFocusItemId] = useState<string | null>(null)
+export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initialLevel, initialFocusId, onGraphStateChange }: Props) {
+  const [level, setLevel] = useState<GraphLevel>(initialLevel ?? 'process')
+  const [focusProcess, setFocusProcess] = useState<Process | null>(() => {
+    if (initialLevel === 'bp' && initialFocusId) {
+      return (ALL_PROCESSES as Process[]).find((p) => p.id === initialFocusId) ?? null
+    }
+    return null
+  })
+  const [focusItemId, setFocusItemId] = useState<string | null>(() => {
+    if (initialLevel === 'item' && initialFocusId) return initialFocusId
+    return null
+  })
+  const isFirstGraphRender = useRef(true)
   const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
@@ -189,6 +201,19 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed }: Props
   const handleBackToItemList = () => {
     setFocusItemId(null)
   }
+
+  // level/focus 変更を URL に反映
+  useEffect(() => {
+    if (isFirstGraphRender.current) {
+      isFirstGraphRender.current = false
+      return
+    }
+    const focusId =
+      level === 'bp' ? (focusProcess?.id ?? null) :
+      level === 'item' ? focusItemId :
+      null
+    onGraphStateChange?.(level, focusId)
+  }, [level, focusProcess, focusItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // グローバル検索からのナビゲーション処理
   useEffect(() => {
