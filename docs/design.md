@@ -59,10 +59,11 @@ UI表示 (EN / JA)
 
 | URLパラメータ | 型 | 対応状態 | デフォルト時は省略 |
 |---|---|---|---|
-| `view` | `map\|graph\|vmodel\|matrix` | 表示ビュー | `map` の場合省略 |
+| `view` | `map\|graph\|vmodel\|matrix\|flow` | 表示ビュー | `map` の場合省略 |
 | `process` | string | ProcessMapView の選択プロセスID | 未選択時省略 |
 | `level` | `process\|bp\|item` | グラフビューのレベル | `process` の場合省略 |
 | `focus` | string | グラフの BP レベルフォーカスプロセスID / item レベルフォーカス情報項目ID | 未選択時省略 |
+| `flowgroup` | string | 成果物フロービューのプロセスレベル選択グループID（例: `SWE`） | グループレベル表示時は省略 |
 
 - **ビュー切替**: `history.pushState` → ブラウザ戻る/進むが機能する
 - **その他の変化**: `history.replaceState` → 細かい操作で履歴エントリを増やさない
@@ -117,10 +118,16 @@ AutomotiveSpiceVisualizer/
 │       ├── VModelView/
 │       │   ├── VModelView.tsx            ← VモデルビューReact Flowキャンバス＋詳細パネル
 │       │   └── vmodelLayout.ts           ← V字固定座標・対応エッジ定義・buildVModelGraph()
-│       └── MatrixView/
-│           ├── MatrixView.tsx            ← マトリクスビュー全体（テーブル＋フィルター）
-│           ├── MatrixCell.tsx            ← 塗りつぶしセル（クリックでポップアップ）
-│           └── CellDetailPopup.tsx       ← セルクリック時のポップアップ
+│       ├── MatrixView/
+│       │   ├── MatrixView.tsx            ← マトリクスビュー全体（テーブル＋フィルター）
+│       │   ├── MatrixCell.tsx            ← 塗りつぶしセル（クリックでポップアップ）
+│       │   └── CellDetailPopup.tsx       ← セルクリック時のポップアップ
+│       └── ArtifactFlowView/
+│           ├── ArtifactFlowView.tsx      ← 成果物フロービュー全体（ツールバー＋キャンバス＋詳細パネル）
+│           ├── SankeyCanvas.tsx          ← カスタムSVGサンキーレンダラー（ResizeObserver対応）
+│           ├── sankeyLayout.ts           ← 2カラムサンキーのノード位置・リンクパス座標計算
+│           ├── sankeyData.ts             ← ALL_PROCESSES → SankeyNode/SankeyLink 変換
+│           └── FlowDetailPanel.tsx       ← リンク/ノードクリック時の右側詳細パネル
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
@@ -641,6 +648,68 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 |---|---|---|
 | BP → Outcome (supports) | #6366f1 (indigo-500) | dashed |
 | Outcome → Item (produces) | #22c55e (green-500) | solid |
+
+### 4.10 ArtifactFlowView（FR-8）
+
+**責務:** プロセスグループが出力する情報項目の全体分布をサンキー図で可視化
+
+```
+状態:
+  selectedGroup: ProcessGroup | null  （null = グループレベル、非null = プロセスレベル）
+  selection: FlowSelection | null     （クリックされたリンク or ノードの詳細表示対象）
+
+データ計算（useMemo）:
+  selectedGroup === null  → buildGroupSankeyData(ALL_PROCESSES, lang)
+  selectedGroup !== null  → buildProcessSankeyData(ALL_PROCESSES, selectedGroup, lang)
+
+ツールバー:
+  グループレベル: "プロセスグループ → 情報項目カテゴリ" ラベル + 帯幅説明
+  プロセスレベル: "← グループビューに戻る" ボタン + 選択グループバッジ
+
+レンダリング:
+  左ペイン（flex-1）:
+    <SankeyCanvas nodes links onNodeClick onLinkClick>
+  右ペイン（w-80、selection !== null 時）:
+    <FlowDetailPanel selection onClose onNavigate>
+
+URL同期:
+  onFlowStateChange(group) → App.tsx の setFlowState(group) → replaceState で ?flowgroup=XX に反映
+  初期値は initialFlowGroup prop（App.tsx が url.flowGroup を渡す）
+```
+
+#### sankeyData.ts
+
+```typescript
+interface SankeyNode { id: string; label: string; value: number; color: string; side: 'left'|'right' }
+interface SankeyLink { sourceId: string; targetId: string; value: number; itemIds: string[] }
+
+buildGroupSankeyData(processes, lang)
+// 左: PROCESS_GROUPS（出力0件は除外）、右: 情報項目 ID プレフィックス（01〜19）
+// リンク: group × prefix ペアで情報項目数を集計
+
+buildProcessSankeyData(processes, group, lang)
+// 左: 選択グループの個別プロセス、右: 個別情報項目 ID
+// リンク: process → item, value = 1
+```
+
+#### sankeyLayout.ts
+
+```typescript
+computeSankeyLayout(nodes, links, canvasWidth, canvasHeight)
+// → { layoutNodes: LayoutNode[], layoutLinks: LayoutLink[] }
+// 各ノード高さ = (value / 総値) × 有効高さ（最小 4px）
+// 右ノードは dominant source 順にソート
+// リンクの帯: ノード内の累積オフセットで位置を決定
+
+bandPath(x0, sy0, sy1, x1, ty0, ty1): string
+// SVG cubic bezier パス文字列（帯の上辺と下辺）を返す
+```
+
+#### SankeyCanvas.tsx
+
+- `ResizeObserver` でコンテナサイズを監視し、SVG を全幅全高に合わせる
+- ホバー時: 関連ノード・リンクを強調、非関連要素は opacity 低下
+- ノードラベルはノード外側（左ノード=左、右ノード=右）に配置
 
 ---
 
