@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 2.1  
-**最終更新:** 2026-05-28  
+**バージョン:** 2.2  
+**最終更新:** 2026-05-29  
 
 ---
 
@@ -12,7 +12,9 @@
 
 ```
 ブラウザ (SPA)
-├── App.tsx                   ← ルートコンポーネント（ビュー切替・言語切替）
+├── App.tsx                   ← ルートコンポーネント（ビュー切替・言語切替・URL状態管理）
+├── hooks/
+│   └── useAppUrlState        ← URLクエリ ↔ React state の双方向同期（NFR-6）
 ├── views/
 │   ├── ProcessMapView        ← プロセスマップビュー
 │   ├── RelationshipGraphView ← リレーションシップグラフビュー
@@ -51,6 +53,22 @@ UI表示 (EN / JA)
 
 言語状態は `src/store/languageStore.ts` のモジュールレベルシングルトンで管理し、`useLang()` フックで各コンポーネントが購読する。
 
+### 1.4 URL状態管理（NFR-6）
+
+`src/hooks/useAppUrlState.ts` が URLクエリパラメータと React state を双方向同期する。
+
+| URLパラメータ | 型 | 対応状態 | デフォルト時は省略 |
+|---|---|---|---|
+| `view` | `map\|graph\|vmodel\|matrix` | 表示ビュー | `map` の場合省略 |
+| `process` | string | ProcessMapView の選択プロセスID | 未選択時省略 |
+| `level` | `process\|bp\|item` | グラフビューのレベル | `process` の場合省略 |
+| `focus` | string | グラフの BP レベルフォーカスプロセスID / item レベルフォーカス情報項目ID | 未選択時省略 |
+
+- **ビュー切替**: `history.pushState` → ブラウザ戻る/進むが機能する
+- **その他の変化**: `history.replaceState` → 細かい操作で履歴エントリを増やさない
+- **初期化**: マウント時に `URLSearchParams` を解析して初期値を設定
+- **popstate 対応**: `popstate` イベントで URL から状態を再読み込みする
+
 ---
 
 ## 2. ファイル構成
@@ -75,6 +93,8 @@ AutomotiveSpiceVisualizer/
 │   │   ├── aspiceLoader.ts   ← JSON → 内部型への変換（JSON更新時の単一修正点）
 │   │   ├── index.ts          ← ALL_PROCESSES / INFORMATION_ITEMS / PROCESS_GROUPS を re-export
 │   │   └── processGroups.ts  ← プロセスグループUIメタ情報（12グループ）
+│   ├── hooks/
+│   │   └── useAppUrlState.ts ← URLクエリパラメータ ↔ アプリ状態の双方向同期フック
 │   ├── utils/
 │   │   └── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
 │   └── components/

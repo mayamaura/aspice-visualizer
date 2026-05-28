@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Process, ProcessGroup } from '../../types/aspice'
 import { ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
 import { ProcessCard } from './ProcessCard'
@@ -12,14 +12,34 @@ interface Props {
   lang: Language
   navigateTo?: NavigateTarget | null
   onNavConsumed?: () => void
+  initialProcessId?: string | null
+  onProcessChange?: (processId: string | null) => void
 }
 
-export function ProcessMapView({ lang, navigateTo, onNavConsumed }: Props) {
-  const [selected, setSelected] = useState<Process | null>(null)
-  const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(
-    new Set(PROCESS_GROUPS.map((g) => g.id))
-  )
+export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcessId, onProcessChange }: Props) {
+  const [selected, setSelected] = useState<Process | null>(() => {
+    if (!initialProcessId) return null
+    return (ALL_PROCESSES as Process[]).find((p) => p.id === initialProcessId) ?? null
+  })
+  const [activeGroups, setActiveGroups] = useState<Set<ProcessGroup>>(() => {
+    const all = new Set(PROCESS_GROUPS.map((g) => g.id)) as Set<ProcessGroup>
+    if (initialProcessId) {
+      const p = (ALL_PROCESSES as Process[]).find((proc) => proc.id === initialProcessId)
+      if (p) all.add(p.group)
+    }
+    return all
+  })
   const [highlightProcessId, setHighlightProcessId] = useState<string | null>(null)
+  const isFirstRender = useRef(true)
+
+  // selected 変更を URL に反映
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    onProcessChange?.(selected?.id ?? null)
+  }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // グローバル検索からのナビゲーション処理
   useEffect(() => {
