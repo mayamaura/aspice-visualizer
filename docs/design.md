@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 2.0  
-**最終更新:** 2026-05-26  
+**バージョン:** 2.1  
+**最終更新:** 2026-05-28  
 
 ---
 
@@ -16,7 +16,8 @@
 ├── views/
 │   ├── ProcessMapView        ← プロセスマップビュー
 │   ├── RelationshipGraphView ← リレーションシップグラフビュー
-│   └── VModelView            ← Vモデルビュー（SYS/SWE/HWE V字配置）
+│   ├── VModelView            ← Vモデルビュー（SYS/SWE/HWE V字配置）
+│   └── MatrixView            ← クロスリファレンスマトリクスビュー
 ├── data/                     ← 静的プロセスデータ（TypeScript）
 ├── types/                    ← 型定義
 └── store/                    ← グローバル状態（言語）
@@ -93,9 +94,13 @@ AutomotiveSpiceVisualizer/
 │       │   ├── ProcessHoverTooltip.tsx   ← プロセスノードホバー時ツールチップ
 │       │   ├── ItemDetailPanel.tsx       ← 情報項目詳細サイドパネル（情報項目起点レベル）
 │       │   └── BPLevelDetailPanel.tsx    ← BP/Outcome/情報項目詳細サイドパネル（BP/情報項目レベル）
-│       └── VModelView/
-│           ├── VModelView.tsx            ← VモデルビューReact Flowキャンバス＋詳細パネル
-│           └── vmodelLayout.ts           ← V字固定座標・対応エッジ定義・buildVModelGraph()
+│       ├── VModelView/
+│       │   ├── VModelView.tsx            ← VモデルビューReact Flowキャンバス＋詳細パネル
+│       │   └── vmodelLayout.ts           ← V字固定座標・対応エッジ定義・buildVModelGraph()
+│       └── MatrixView/
+│           ├── MatrixView.tsx            ← マトリクスビュー全体（テーブル＋フィルター）
+│           ├── MatrixCell.tsx            ← 塗りつぶしセル（クリックでポップアップ）
+│           └── CellDetailPopup.tsx       ← セルクリック時のポップアップ
 ├── index.html
 ├── vite.config.ts
 ├── tailwind.config.js
@@ -170,16 +175,17 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
 
 ```
 状態:
-  view: 'map' | 'graph' | 'vmodel' （初期値: 'map'）
+  view: 'map' | 'graph' | 'vmodel' | 'matrix' （初期値: 'map'）
   lang: Language                    （useLang() フック経由）
   pendingNav: NavigateTarget | null  （グローバル検索からのジャンプ先、消費後null）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ（3タブ）/ GlobalSearch / EN/JAトグル
+  <header>  ← ASPICE 4.0バッジ / ビュータブ（4タブ）/ GlobalSearch / EN/JAトグル
   <main>
     view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
     view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
     view==='vmodel' → <VModelView lang navigateTo={pendingNav} onNavConsumed />
+    view==='matrix' → <MatrixView lang onNavigate={handleNavigate} />
 
 handleNavigate(target):
   target.type==='process' → setView('map'), setPendingNav(target)
@@ -451,7 +457,7 @@ Props: { selected: Set<ProcessGroup>; lang: Language; onChange: (next: Set<Proce
 // ProcessMapView / RelationshipGraphView（process level）で共用
 ```
 
-### 4.10 GlobalSearch（共通コンポーネント）  <!-- 旧4.10 -->
+### 4.12 GlobalSearch（共通コンポーネント）
 
 **責務:** ヘッダー常設の横断検索ボックスと結果ドロップダウン
 
@@ -470,7 +476,7 @@ Props: { lang: Language; onNavigate: (target: NavigateTarget) => void }
   - 結果20件上限に達した場合は注記を表示
 ```
 
-### 4.11 searchUtils.ts（ユーティリティ）
+### 4.13 searchUtils.ts（ユーティリティ）
 
 **責務:** 全データを横断する検索ロジックと NavigateTarget 型定義
 
@@ -496,7 +502,68 @@ type NavigateTarget =
 function search(query: string, lang: Language): SearchResult[]
 ```
 
-### 4.9 EdgeTypeFilterBar（共通コンポーネント）
+### 4.9 MatrixView（FR-7）
+
+**責務:** プロセス（行）×情報項目（列）のクロスリファレンスマトリクス表示
+
+```
+状態:
+  selectedGroups: Set<ProcessGroup>  （初期: 全12グループ）
+  popup: { process, item } | null    （セルクリック時のポップアップ対象）
+
+データ計算（useMemo）:
+  allItemIds    : ALL_PROCESSES から収集した全情報項目ID（昇順・重複排除）
+  itemMap       : 情報項目IDをキーとした InformationItem マップ
+  columnGroups  : 情報項目IDの先頭部分（XX）でグループ化した列グループ配列
+  filteredGroupedProcesses : selectedGroups でフィルタし PROCESS_GROUPS 順に並べたグループ+プロセス配列
+  outputSets    : processId → Set<itemId> のマップ（セル塗りつぶし判定を O(1) に最適化）
+
+テーブル構造:
+  <div overflow-auto> (スクロールコンテナ)
+    <table>
+      <thead>
+        <tr>  ← 列グループ見出し行 (sticky top-0 z-20)
+          <th rowSpan={2} sticky left-0 top-0 z-30>プロセス</th>
+          <th colSpan={n}>XX</th> × グループ数
+        <tr>  ← 情報項目ID行 (sticky top-6 z-20)
+          <th sticky top>17-01 (縦書き)</th> × 情報項目数
+      <tbody>
+        <tr>  ← グループヘッダー行（グループ色で着色）
+          <td colSpan={全列数}>SYS — System Engineering</td>
+        <tr>  ← プロセス行
+          <td sticky left-0 z-10>SYS.1 プロセス名</td>  ← 行ヘッダー（グループ色）
+          <MatrixCell filled={outputSets[p.id].has(id)}>  × 情報項目数
+
+イベント:
+  列ヘッダー（情報項目ID）クリック → onNavigate({ type:'item', itemId }) → グラフビューに遷移
+  塗りつぶしセルクリック          → popup を設定（CellDetailPopup を表示）
+```
+
+### 4.9a MatrixCell
+
+**責務:** マトリクスの1セルUI
+
+```typescript
+Props: { process: Process; item: InformationItem; filled: boolean; onClick: (p, i) => void }
+// filled=true: 青色の塗りつぶし（bg-blue-600 + 内部ドット）、クリック可能
+// filled=false: 空のセル（border のみ）
+```
+
+### 4.9b CellDetailPopup
+
+**責務:** マトリクスセルクリック時に表示するモーダルポップアップ
+
+```typescript
+Props: { process: Process; item: InformationItem; lang: Language; onClose: () => void }
+
+表示内容:
+  ヘッダー: グループバッジ / プロセスID / プロセス名 / Xボタン
+  プロセス目的
+  アウトプット情報項目: 情報項目ID / 名称 / 説明 / 特性リスト
+  関連プロセス成果: output_information_items から outcome_refs を逆引きして表示
+```
+
+### 4.11 EdgeTypeFilterBar（共通コンポーネント）
 
 **責務:** エッジ種別の表示絞り込みトグルUI
 
@@ -506,7 +573,6 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 // supports（indigo）/ produces（green）の2種チップ
 // 最低1種別選択を強制
 // RelationshipGraphView の level==='bp' 時のみ使用
-// RelationshipGraphView（bp level）でのみ使用
 ```
 
 ---
