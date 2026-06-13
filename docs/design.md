@@ -346,9 +346,18 @@ React Flow Node プロパティ:
 **責務:** ReactFlow用ノード/エッジ配列の生成
 
 ```typescript
+// 可変ノード（outcomeNode / bpNode / itemNode）の描画サイズ推定（内部純関数）
+estimateNodeSize(type, labelText, bodyText) → { width, height }
+  // CustomNodes.tsx の実 CSS（min-w / max-w / px-3 py-2 / text-xs / leading-tight / 2段組）に基づき、
+  // measurePx（Canvas計測）で label 幅・body 幅を算出し、折返し行数から高さを決定する。
+  // 結果は各ノードの data._size および style.width として付与され、
+  // nodeSizeForLayout ヘルパー経由で applyDagreLayout に渡される。
+
 // Dagreレイアウト適用（内部ユーティリティ）
 applyDagreLayout(nodes, edges, options: { rankdir, ranksep, nodesep })
   → Node[]  // position を Dagre 計算値で上書きして返す
+  // 各ノードの data._size（estimateNodeSize の推定値）を nodeSizeForLayout ヘルパー経由で優先参照する。
+  // processNode 等 _size を持たないノードのみ固定テーブル NODE_SIZE にフォールバックする。
 
 // プロセスレベルグラフ生成
 buildProcessLevelGraph(processes: Process[], lang: Language, activeGroups: Set<ProcessGroup>)
@@ -385,7 +394,8 @@ buildDetailLevelGraph(process: Process, lang: Language, activeEdgeTypes: Set<Edg
   → { nodes: Node[], edges: Edge[] }
   // ノード: Process(root) / Outcome×n / BP×n（supports ON時）/ Item×n（produces ON時）
   // エッジ: BP→Outcome(supports, bp.outcome_refs) / Outcome→Item(produces, output_information_items[].outcome_refs)
-  // Dagre rankdir:LR で自動レイアウト
+  // outcome / bp / item 各ノードに estimateNodeSize 推定値を style.width と data._size として付与
+  // Dagre rankdir:LR で自動レイアウト（ノード間隔は推定サイズに基づき確保）
 
 // 情報項目一覧グラフ生成（情報項目起点レベルの初期画面）
 buildItemLevelGraph(processes: Process[], lang: Language)
@@ -393,7 +403,9 @@ buildItemLevelGraph(processes: Process[], lang: Language)
   // 全プロセスの output_information_items から情報項目IDを収集（重複排除）
   // 各情報項目を itemNode としてエッジなしで配置
   // クリックで buildItemFocusGraph へ遷移
-  // Dagre rankdir:LR で自動レイアウト
+  // レイアウト: XX-YY 形式の ID を XX プレフィックスでグループ化して列配置（固定列グリッド）。
+  //   各ノードの高さは estimateNodeSize（measurePx Canvas計測）で推定し、列内 y を累積して行方向に積む。
+  //   列幅は列内ノードの最大推定幅に合わせる可変方式。Dagre は使用しない。
 
 // 情報項目起点グラフ生成（選択した情報項目の生成元を逆引き）
 buildItemFocusGraph(itemId: string, processes: Process[], lang: Language)
@@ -403,7 +415,8 @@ buildItemFocusGraph(itemId: string, processes: Process[], lang: Language)
   // 左端: Outcomeを持つプロセスノード（プロセスグループ色）
   // エッジ: Process → Outcome（無色実線）/ Outcome → 情報項目（produces、緑実線）
   // 複数プロセスが同じ情報項目を出力する場合はすべて展開
-  // Dagre rankdir:LR で自動レイアウト
+  // outcome ノードに estimateNodeSize 推定値を style.width と data._size として付与
+  // Dagre rankdir:LR で自動レイアウト（ノード間隔は推定サイズに基づき確保）
 ```
 
 ### 4.7b BPLevelDetailPanel
