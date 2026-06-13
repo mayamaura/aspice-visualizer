@@ -31,6 +31,10 @@ const NODE_WIDTH = 180
 const GAP = 6
 const MIN_NODE_HEIGHT = 4
 
+// ノードの外側に描画するラベル用の左右余白
+export const LEFT_LABEL_MARGIN = 200
+export const RIGHT_LABEL_MARGIN = 200
+
 export function computeSankeyLayout(
   nodes: SankeyNode[],
   links: SankeyLink[],
@@ -75,9 +79,12 @@ export function computeSankeyLayout(
   const leftYStarts = calcYStarts(leftNodes, leftHeights)
   const rightYStarts = calcYStarts(rightOrder, rightHeights)
 
-  // LayoutNode を生成
-  const leftX = 0
-  const rightX = canvasWidth - NODE_WIDTH
+  // LayoutNode を生成（ラベルがはみ出さないよう左右に余白を確保）
+  const leftX = LEFT_LABEL_MARGIN
+  const rightX = Math.max(
+    leftX + NODE_WIDTH + 40,
+    canvasWidth - NODE_WIDTH - RIGHT_LABEL_MARGIN,
+  )
 
   const layoutNodeMap = new Map<string, LayoutNode>()
   for (const n of leftNodes) {
