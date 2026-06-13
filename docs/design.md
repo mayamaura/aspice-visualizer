@@ -713,6 +713,8 @@ computeSankeyLayout(nodes, links, canvasWidth, canvasHeight)
 // 各ノード高さ = (value / 総値) × 有効高さ（最小 4px）
 // 右ノードは dominant source 順にソート
 // リンクの帯: ノード内の累積オフセットで位置を決定
+// 左右ノードは LEFT_LABEL_MARGIN / RIGHT_LABEL_MARGIN（各200px）分内側に配置し、
+// ノード外側に描画するラベルが画面端で切れないよう余白を確保
 
 bandPath(x0, sy0, sy1, x1, ty0, ty1): string
 // SVG cubic bezier パス文字列（帯の上辺と下辺）を返す
@@ -722,7 +724,7 @@ bandPath(x0, sy0, sy1, x1, ty0, ty1): string
 
 - `ResizeObserver` でコンテナサイズを監視し、SVG を全幅全高に合わせる
 - ホバー時: 関連ノード・リンクを強調、非関連要素は opacity 低下
-- ノードラベルはノード外側（左ノード=左、右ノード=右）に配置
+- ノードラベルはノード外側（左ノード=左、右ノード=右）に配置。トランケート幅は `LEFT_LABEL_MARGIN` / `RIGHT_LABEL_MARGIN` に連動し、確保した余白内に収める
 
 ---
 

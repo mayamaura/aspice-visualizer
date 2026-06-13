@@ -1,5 +1,10 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
-import { computeSankeyLayout, bandPath } from './sankeyLayout'
+import {
+  computeSankeyLayout,
+  bandPath,
+  LEFT_LABEL_MARGIN,
+  RIGHT_LABEL_MARGIN,
+} from './sankeyLayout'
 import type { LayoutNode, LayoutLink } from './sankeyLayout'
 import type { SankeyNode, SankeyLink } from './sankeyData'
 
@@ -141,7 +146,7 @@ function NodeLabel({ node, isDimmed }: { node: LayoutNode; isDimmed: boolean }) 
         className="pointer-events-none"
         style={{ fontFamily: 'ui-monospace, monospace' }}
       >
-        <TruncatedText text={node.label} maxWidth={160} />
+        <TruncatedText text={node.label} maxWidth={LEFT_LABEL_MARGIN - PAD * 2} />
       </text>
     )
   }
@@ -157,7 +162,7 @@ function NodeLabel({ node, isDimmed }: { node: LayoutNode; isDimmed: boolean }) 
       className="pointer-events-none"
       style={{ fontFamily: 'ui-monospace, monospace' }}
     >
-      <TruncatedText text={node.label} maxWidth={140} />
+      <TruncatedText text={node.label} maxWidth={RIGHT_LABEL_MARGIN - PAD * 2} />
     </text>
   )
 }
