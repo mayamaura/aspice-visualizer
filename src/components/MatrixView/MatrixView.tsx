@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Language, Process, InformationItem, ProcessGroup } from '../../types/aspice'
 import { ALL_PROCESSES, INFORMATION_ITEMS, PROCESS_GROUPS } from '../../data'
 import { t } from '../../store/languageStore'
@@ -22,6 +22,58 @@ export function MatrixView({ lang, onNavigate }: Props) {
     new Set(PROCESS_GROUPS.map((g) => g.id))
   )
   const [popup, setPopup] = useState<PopupState | null>(null)
+
+  // マウスドラッグによるスクロール
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const dragState = useRef({
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    startLeft: 0,
+    startTop: 0,
+  })
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleDragMouseDown = (e: React.MouseEvent) => {
+    // 左ボタンのみ
+    if (e.button !== 0 || !scrollRef.current) return
+    const el = scrollRef.current
+    dragState.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: el.scrollLeft,
+      startTop: el.scrollTop,
+    }
+    setIsDragging(true)
+  }
+
+  const handleDragMouseMove = (e: React.MouseEvent) => {
+    const d = dragState.current
+    if (!d.active || !scrollRef.current) return
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    if (!d.moved && Math.abs(dx) + Math.abs(dy) > 4) d.moved = true
+    scrollRef.current.scrollLeft = d.startLeft - dx
+    scrollRef.current.scrollTop = d.startTop - dy
+  }
+
+  const endDrag = () => {
+    if (!dragState.current.active) return
+    dragState.current.active = false
+    setIsDragging(false)
+  }
+
+  // ドラッグでスクロールした直後のクリック（セル選択・列遷移）を抑制
+  const handleDragClickCapture = (e: React.MouseEvent) => {
+    if (dragState.current.moved) {
+      dragState.current.moved = false
+      e.stopPropagation()
+      e.preventDefault()
+    }
+  }
 
   // 全情報項目ID（昇順・重複排除）
   const allItemIds = useMemo(
@@ -84,7 +136,15 @@ export function MatrixView({ lang, onNavigate }: Props) {
     <div className="flex flex-col h-full bg-gray-950">
       <GroupFilterBar selected={selectedGroups} lang={lang} onChange={setSelectedGroups} />
 
-      <div className="flex-1 overflow-auto">
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-auto select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onMouseDown={handleDragMouseDown}
+        onMouseMove={handleDragMouseMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onClickCapture={handleDragClickCapture}
+      >
         <table className="border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
           <thead>
             {/* 列グループ見出し行 */}

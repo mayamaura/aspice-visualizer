@@ -550,6 +550,11 @@ function search(query: string, lang: Language): SearchResult[]
 状態:
   selectedGroups: Set<ProcessGroup>  （初期: 全12グループ）
   popup: { process, item } | null    （セルクリック時のポップアップ対象）
+  isDragging: boolean                （マウスドラッグによるスクロール中フラグ。カーソル表示切替用）
+
+ref:
+  scrollRef  : スクロールコンテナ <div> への参照
+  dragState  : { active, moved, startX/Y, startLeft/Top } ドラッグ開始位置とスクロール量を保持
 
 データ計算（useMemo）:
   allItemIds    : ALL_PROCESSES から収集した全情報項目ID（昇順・重複排除）
@@ -559,7 +564,7 @@ function search(query: string, lang: Language): SearchResult[]
   outputSets    : processId → Set<itemId> のマップ（セル塗りつぶし判定を O(1) に最適化）
 
 テーブル構造:
-  <div overflow-auto> (スクロールコンテナ)
+  <div overflow-auto cursor-grab/grabbing> (スクロールコンテナ。マウスドラッグでスクロール可能)
     <table>
       <thead>
         <tr>  ← 列グループ見出し行 (sticky top-0 z-20)
@@ -577,6 +582,9 @@ function search(query: string, lang: Language): SearchResult[]
 イベント:
   列ヘッダー（情報項目ID）クリック → onNavigate({ type:'item', itemId }) → グラフビューに遷移
   塗りつぶしセルクリック          → popup を設定（CellDetailPopup を表示）
+  スクロールコンテナ上でマウスドラッグ → scrollLeft/scrollTop を更新（パン操作）
+    閾値（4px）を超えて動いた場合は onClickCapture で直後のクリックを抑制し、
+    意図しないセル選択・列遷移を防止する
 ```
 
 ### 4.9a MatrixCell
