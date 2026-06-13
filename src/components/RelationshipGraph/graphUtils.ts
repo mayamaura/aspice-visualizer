@@ -45,6 +45,19 @@ const NODE_SIZE: Record<string, { width: number; height: number }> = {
   itemNode:     { width: 145, height: 50 },
 }
 
+// 可変ノード（outcome / bp / item）の min/max 幅（CustomNodes.tsx の Tailwind クラスと一致）
+const VAR_NODE_W: Record<'outcomeNode' | 'bpNode' | 'itemNode', { min: number; max: number }> = {
+  outcomeNode: { min: 200, max: 280 },
+  bpNode:      { min: 160, max: 240 },
+  itemNode:    { min: 120, max: 200 },
+}
+
+// 共通パディング / 行高定数（px-3 py-2 = 横24px/縦16px、text-xs leading-tight ≈ 15px/行、mb-0.5 = 2px）
+const PAD_X   = 24
+const PAD_Y   = 16
+const LINE_H  = 15
+const LABEL_GAP = 2
+
 function processNodeColor(group: string) {
   return { bg: GROUP_COLOR[group] ?? '#1f2937', border: GROUP_BORDER[group] ?? '#4b5563' }
 }
@@ -53,6 +66,11 @@ function firstSentence(text: string): string {
   const m = text.match(/^[^。.!?！？]+[。.!?！？]/)
   const s = m ? m[0].trim() : text
   return s.length > 150 ? s.slice(0, 150) + '…' : s
+}
+
+function nodeSizeForLayout(node: Node): { width: number; height: number } {
+  const est = (node.data as { _size?: { width: number; height: number } })._size
+  return est ?? NODE_SIZE[node.type ?? 'processNode'] ?? { width: 160, height: 60 }
 }
 
 function applyDagreLayout(
@@ -71,7 +89,7 @@ function applyDagreLayout(
   })
 
   for (const node of nodes) {
-    const size = NODE_SIZE[node.type ?? 'processNode'] ?? { width: 160, height: 60 }
+    const size = nodeSizeForLayout(node)
     g.setNode(node.id, { width: size.width, height: size.height })
   }
 
@@ -83,7 +101,7 @@ function applyDagreLayout(
 
   return nodes.map((node) => {
     const pos = g.node(node.id)
-    const size = NODE_SIZE[node.type ?? 'processNode'] ?? { width: 160, height: 60 }
+    const size = nodeSizeForLayout(node)
     return {
       ...node,
       position: {
@@ -168,6 +186,25 @@ function measurePx(text: string, font: string): number {
 
 const FONT_NAME = '12px ui-sans-serif,system-ui,sans-serif'
 const FONT_ID   = 'bold 12px ui-monospace,monospace'
+
+/**
+ * CustomNodes.tsx の実 CSS に基づいてノードの描画サイズを推定する。
+ * label 行 + labelGap + body 行 × 折返し行数 で高さを算出し、
+ * clamp(max(labelW, bodyNaturalW), minW, maxW) で幅を決定する。
+ */
+function estimateNodeSize(
+  type: 'outcomeNode' | 'bpNode' | 'itemNode',
+  labelText: string,
+  bodyText: string,
+): { width: number; height: number } {
+  const { min: minW, max: maxW } = VAR_NODE_W[type]
+  const labelW       = measurePx(labelText, FONT_ID)   + PAD_X
+  const bodyNaturalW = measurePx(bodyText,  FONT_NAME) + PAD_X
+  const contentW     = Math.min(maxW, Math.max(minW, labelW, bodyNaturalW))
+  const bodyLines    = Math.max(1, Math.ceil(measurePx(bodyText, FONT_NAME) / (contentW - PAD_X)))
+  const height       = Math.ceil(PAD_Y + LINE_H + LABEL_GAP + bodyLines * LINE_H)
+  return { width: Math.ceil(contentW), height }
+}
 
 // EN・JA 両言語のうち長い方のテキスト幅 + 水平パディング (px-3 = 24px)
 function calcNodeWidth(process: Process): number {
@@ -316,11 +353,15 @@ export function buildDetailLevelGraph(
   if (showSupports || showProduces) {
     process.outcomes.forEach((oc) => {
       const ocNodeId = `oc-${oc.id}`
+      const ocLabel = `${process.id}.${oc.id}`
+      const ocDesc  = t(oc.text, lang)
+      const ocEst   = estimateNodeSize('outcomeNode', ocLabel, ocDesc)
       nodes.push({
         id: ocNodeId,
         type: 'outcomeNode',
         position: { x: 0, y: 0 },
-        data: { label: `${process.id}.${oc.id}`, description: t(oc.text, lang) },
+        style: { width: ocEst.width },
+        data: { label: ocLabel, description: ocDesc, _size: ocEst },
       })
     })
   }
@@ -328,11 +369,14 @@ export function buildDetailLevelGraph(
   // BP ノード + supports エッジ（BP → Outcome）
   if (showSupports) {
     process.base_practices.forEach((bp) => {
+      const bpName = t(bp.name, lang)
+      const bpEst  = estimateNodeSize('bpNode', bp.id, bpName)
       nodes.push({
         id: bp.id,
         type: 'bpNode',
         position: { x: 0, y: 0 },
-        data: { label: bp.id, name: t(bp.name, lang), bg, border },
+        style: { width: bpEst.width },
+        data: { label: bp.id, name: bpName, bg, border, _size: bpEst },
       })
 
       bp.outcome_refs.forEach((refId) => {
@@ -356,15 +400,19 @@ export function buildDetailLevelGraph(
     process.output_information_items.forEach((poi) => {
       const itemNodeId = `item-${poi.id}`
       if (!nodes.find((n) => n.id === itemNodeId)) {
-        const item = INFORMATION_ITEMS.find((it) => it.id === poi.id)
+        const item     = INFORMATION_ITEMS.find((it) => it.id === poi.id)
+        const itemName = item ? t(item.name, lang) : poi.id
+        const itemEst  = estimateNodeSize('itemNode', poi.id, itemName)
         nodes.push({
           id: itemNodeId,
           type: 'itemNode',
           position: { x: 0, y: 0 },
+          style: { width: itemEst.width },
           data: {
             label: poi.id,
-            name: item ? t(item.name, lang) : poi.id,
+            name: itemName,
             isOutput: true,
+            _size: itemEst,
           },
         })
       }
@@ -373,12 +421,16 @@ export function buildDetailLevelGraph(
         const ocNodeId = `oc-${refId}`
         // Outcome ノードが存在しない場合（supports が OFF）は追加する
         if (!nodes.find((n) => n.id === ocNodeId)) {
-          const oc = process.outcomes.find((o) => o.id === refId)
+          const oc      = process.outcomes.find((o) => o.id === refId)
+          const fallbackLabel = `${process.id}.${refId}`
+          const fallbackDesc  = oc ? t(oc.text, lang) : String(refId)
+          const fallbackEst   = estimateNodeSize('outcomeNode', fallbackLabel, fallbackDesc)
           nodes.push({
             id: ocNodeId,
             type: 'outcomeNode',
             position: { x: 0, y: 0 },
-            data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
+            style: { width: fallbackEst.width },
+            data: { label: fallbackLabel, description: fallbackDesc, _size: fallbackEst },
           })
         }
         edges.push({
@@ -432,8 +484,6 @@ export function buildItemLevelGraph(
     groups.get(xx)!.sort((a, b) => parseInt(a.split('-')[1], 10) - parseInt(b.split('-')[1], 10))
   }
 
-  const ITEM_W = NODE_SIZE.itemNode.width
-  const ITEM_H = NODE_SIZE.itemNode.height
   const COL_GAP = 20
   const ROW_GAP = 15
 
@@ -442,28 +492,46 @@ export function buildItemLevelGraph(
 
   for (const xx of sortedXXs) {
     const items = groups.get(xx)!
-    items.forEach((id, rowIndex) => {
-      const item = INFORMATION_ITEMS.find((i) => i.id === id)
+    // 列内の各アイテムのサイズを先に計算
+    const colSizes = items.map((id) => {
+      const item     = INFORMATION_ITEMS.find((i) => i.id === id)
+      const itemName = item ? t(item.name, lang) : id
+      return { id, itemName, est: estimateNodeSize('itemNode', id, itemName) }
+    })
+    // 列幅 = 列内最大 est.width
+    const colW = Math.max(...colSizes.map((e) => e.est.width))
+    let y = 0
+    for (const { id, itemName, est } of colSizes) {
       nodes.push({
         id: `item-${id}`,
         type: 'itemNode',
-        position: { x: colX, y: rowIndex * (ITEM_H + ROW_GAP) },
-        data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
+        position: { x: colX, y },
+        style: { width: est.width },
+        data: { label: id, name: itemName, isOutput: true, clickable: true, _size: est },
       })
-    })
-    colX += ITEM_W + COL_GAP
+      y += est.height + ROW_GAP
+    }
+    colX += colW + COL_GAP
   }
 
   // XX-YY 形式でないIDは末尾列に追加
-  ungrouped.sort().forEach((id, rowIndex) => {
-    const item = INFORMATION_ITEMS.find((i) => i.id === id)
+  const ungroupedSorted = ungrouped.sort()
+  const ungroupedSizes = ungroupedSorted.map((id) => {
+    const item     = INFORMATION_ITEMS.find((i) => i.id === id)
+    const itemName = item ? t(item.name, lang) : id
+    return { id, itemName, est: estimateNodeSize('itemNode', id, itemName) }
+  })
+  let y = 0
+  for (const { id, itemName, est } of ungroupedSizes) {
     nodes.push({
       id: `item-${id}`,
       type: 'itemNode',
-      position: { x: colX, y: rowIndex * (ITEM_H + ROW_GAP) },
-      data: { label: id, name: item ? t(item.name, lang) : id, isOutput: true, clickable: true },
+      position: { x: colX, y },
+      style: { width: est.width },
+      data: { label: id, name: itemName, isOutput: true, clickable: true, _size: est },
     })
-  })
+    y += est.height + ROW_GAP
+  }
 
   return { nodes, edges: [] }
 }
@@ -482,13 +550,16 @@ export function buildItemFocusGraph(
   const edges: Edge[] = []
 
   // 右端: 選択情報項目ノード
-  const item = INFORMATION_ITEMS.find((i) => i.id === itemId)
-  const itemNodeId = `item-${itemId}`
+  const item        = INFORMATION_ITEMS.find((i) => i.id === itemId)
+  const itemNodeId  = `item-${itemId}`
+  const focusName   = item ? t(item.name, lang) : itemId
+  const focusEst    = estimateNodeSize('itemNode', itemId, focusName)
   nodes.push({
     id: itemNodeId,
     type: 'itemNode',
     position: { x: 0, y: 0 },
-    data: { label: itemId, name: item ? t(item.name, lang) : itemId, isOutput: true },
+    style: { width: focusEst.width },
+    data: { label: itemId, name: focusName, isOutput: true, _size: focusEst },
   })
 
   // 全プロセスを逆引き: この情報項目を出力しているプロセスを収集
@@ -514,11 +585,15 @@ export function buildItemFocusGraph(
       const oc = process.outcomes.find((o) => o.id === refId)
 
       if (!nodes.find((n) => n.id === ocNodeId)) {
+        const focusOcLabel = `${process.id}.${refId}`
+        const focusOcDesc  = oc ? t(oc.text, lang) : String(refId)
+        const focusOcEst   = estimateNodeSize('outcomeNode', focusOcLabel, focusOcDesc)
         nodes.push({
           id: ocNodeId,
           type: 'outcomeNode',
           position: { x: 0, y: 0 },
-          data: { label: `${process.id}.${refId}`, description: oc ? t(oc.text, lang) : String(refId) },
+          style: { width: focusOcEst.width },
+          data: { label: focusOcLabel, description: focusOcDesc, _size: focusOcEst },
         })
       }
 
