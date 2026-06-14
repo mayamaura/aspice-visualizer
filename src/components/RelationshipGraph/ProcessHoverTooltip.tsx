@@ -20,7 +20,7 @@ export function ProcessHoverTooltip({ purpose, outcomeCount, bpCount, x, y, lang
         pointerEvents: 'none',
         maxWidth: 280,
       }}
-      className="bg-surface-2 border border-line rounded-lg px-3 py-2 shadow-xl text-xs"
+      className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 shadow-xl text-xs"
     >
       <p className="text-content leading-snug mb-2">{purpose}</p>
       <div className="flex gap-4 text-content-2">
