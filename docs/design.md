@@ -1,8 +1,8 @@
 # ソフトウェア設計書
 
 **プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
-**バージョン:** 2.2  
-**最終更新:** 2026-05-29  
+**バージョン:** 3.0  
+**最終更新:** 2026-06-14  
 
 ---
 
@@ -22,7 +22,11 @@
 │   └── MatrixView            ← クロスリファレンスマトリクスビュー
 ├── data/                     ← 静的プロセスデータ（TypeScript）
 ├── types/                    ← 型定義
-└── store/                    ← グローバル状態（言語）
+├── utils/
+│   └── persistence           ← localStorage 薄いラッパー（NFR-8）
+└── store/                    ← グローバル状態（言語・テーマ）
+    ├── languageStore         ← 言語切替（localStorage 永続化）
+    └── themeStore            ← テーマ切替（dark/light、localStorage 永続化）
 ```
 
 ### 1.2 技術スタック
@@ -51,7 +55,9 @@ Components (ProcessMapView, RelationshipGraphView)
 UI表示 (EN / JA)
 ```
 
-言語状態は `src/store/languageStore.ts` のモジュールレベルシングルトンで管理し、`useLang()` フックで各コンポーネントが購読する。
+言語状態は `src/store/languageStore.ts` のモジュールレベルシングルトンで管理し、`useLang()` フックで各コンポーネントが購読する。言語選択は `localStorage`（キー: `aspice-lang`）に永続化され、リロード後も復元される。
+
+テーマ状態は `src/store/themeStore.ts` のモジュールレベルシングルトンで管理し、`useTheme()` フックで購読する。初期値は `localStorage`（キー: `aspice-theme`）→ `prefers-color-scheme` → `dark` の優先順位で決定する。テーマは `<html>` の `.light` クラスで反映する。
 
 ### 1.4 URL状態管理（NFR-6）
 
@@ -69,6 +75,7 @@ UI表示 (EN / JA)
 - **その他の変化**: `history.replaceState` → 細かい操作で履歴エントリを増やさない
 - **初期化**: マウント時に `URLSearchParams` を解析して初期値を設定
 - **popstate 対応**: `popstate` イベントで URL から状態を再読み込みする
+- **lastView フォールバック**: URL に `view` パラメータが無い場合のみ `localStorage`（キー: `aspice-last-view`）の前回ビューを初期値に採用する（URL指定があれば常にURL優先）。ビュー切替時に `lastView` を保存する
 
 ---
 
@@ -88,7 +95,8 @@ AutomotiveSpiceVisualizer/
 │   │   ├── aspice.ts         ← アプリ内部型定義（コンポーネントが参照）
 │   │   └── aspiceRaw.ts      ← JSON Raw型定義（aspice_models.json スキーマに忠実）
 │   ├── store/
-│   │   └── languageStore.ts  ← 言語切替グローバル状態
+│   │   ├── languageStore.ts  ← 言語切替グローバル状態（localStorage 永続化）
+│   │   └── themeStore.ts     ← テーマ切替グローバル状態（dark/light、localStorage 永続化）
 │   ├── data/
 │   │   ├── aspice_models.json← 唯一のデータソース（差し替えで更新）
 │   │   ├── aspiceLoader.ts   ← JSON → 内部型への変換（JSON更新時の単一修正点）
@@ -97,7 +105,8 @@ AutomotiveSpiceVisualizer/
 │   ├── hooks/
 │   │   └── useAppUrlState.ts ← URLクエリパラメータ ↔ アプリ状態の双方向同期フック
 │   ├── utils/
-│   │   └── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
+│   │   ├── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
+│   │   └── persistence.ts    ← localStorage 薄いラッパー（loadSetting/saveSetting/STORAGE_KEYS）
 │   └── components/
 │       ├── common/
 │       │   ├── GroupFilterBar.tsx        ← グループフィルター（ProcessMap/Graph共用）
@@ -625,11 +634,34 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 
 ---
 
-## 5. 言語切替設計 (`src/store/languageStore.ts`)
+## 5. グローバル状態・永続化設計
+
+### 5.1 言語切替 (`src/store/languageStore.ts`)
 
 - モジュールスコープの `currentLang` 変数と `listeners` セットによるシンプルなパブサブ実装
 - `useLang()`: `[lang, toggleFn]` を返す React フック。トグル時に全リスナーを呼び出し全コンポーネントを再レンダリング
 - `t(text: BilingualText, lang: Language)`: 言語に応じたテキストを返すユーティリティ関数
+- 初期値は `localStorage`（キー: `aspice-lang`）から復元。トグル時に保存
+
+### 5.2 テーマ切替 (`src/store/themeStore.ts`)
+
+- `languageStore.ts` と同型のモジュールスコープシングルトン＋パブサブ実装
+- `useTheme()`: `[theme, toggleFn]` を返す React フック（`theme: 'dark' | 'light'`）
+- 初期値の決定順: `localStorage`（キー: `aspice-theme`）→ `matchMedia('(prefers-color-scheme: light)')` → `'dark'`
+- テーマ適用: `document.documentElement.classList.toggle('light', theme === 'light')`（ライト時のみ `.light` を付与）
+- Phase 2（テーマトークン化）で `.light` クラスに対する CSS 変数が定義される予定。Phase 1 時点では DOM クラスの付け外しのみで見た目は変化しない
+
+### 5.3 localStorage ラッパー (`src/utils/persistence.ts`)
+
+```typescript
+export const STORAGE_KEYS = {
+  lang: 'aspice-lang',
+  theme: 'aspice-theme',
+  lastView: 'aspice-last-view',
+}
+// loadSetting<T>(key, fallback): try/catch で localStorage 不可環境を握りつぶす
+// saveSetting(key, value): JSON.stringify してセット
+```
 
 ---
 

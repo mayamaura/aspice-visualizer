@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import type { Language } from '../../types/aspice'
 
 interface Props {
-  containerRef: RefObject<HTMLDivElement>
+  containerRef: RefObject<HTMLDivElement | null>
   lang: Language
 }
 

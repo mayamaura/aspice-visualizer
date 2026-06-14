@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react'
 import type { Language } from '../types/aspice'
+import { loadSetting, saveSetting, STORAGE_KEYS } from '../utils/persistence'
 
-let currentLang: Language = 'en'
+function detectInitialLang(): Language {
+  const saved = loadSetting<Language | null>(STORAGE_KEYS.lang, null)
+  return saved === 'en' || saved === 'ja' ? saved : 'en'
+}
+
+let currentLang: Language = detectInitialLang()
 const listeners = new Set<() => void>()
 
 export function useLang(): [Language, () => void] {
@@ -9,6 +15,7 @@ export function useLang(): [Language, () => void] {
 
   const toggle = useCallback(() => {
     currentLang = currentLang === 'en' ? 'ja' : 'en'
+    saveSetting(STORAGE_KEYS.lang, currentLang)
     listeners.forEach((l) => l())
   }, [])
 
