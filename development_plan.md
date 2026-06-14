@@ -406,3 +406,439 @@ feat/artifact-flow
 - `main` ブランチが最新であること（`git pull`）
 - `npm run type-check` がエラーゼロであること
 - `npm run dev` でアプリが正常起動することを確認
+
+---
+---
+
+# UI/UX 強化 開発計画（v3.0）
+
+**計画バージョン:** 3.0
+**作成日:** 2026-06-14
+**前提:** 上記 v2.0 の全7フェーズ（5ビュー＋検索＋URL状態）完了済み
+**実装担当:** Sonnet が本計画を参照して設計・実装できる粒度で記述
+**ステータス:** 未着手
+
+> v2.0 までと記載粒度が異なるが、精度を重視し詳細度を上げている。本計画内の Phase 番号（1〜5）は v3.0 内のローカル番号であり、v2.0 の Phase 1〜7 とは別系列。
+
+---
+
+## Context（なぜこの開発を行うか）
+
+アプリは機能面で成熟したが（5ビュー・グローバル検索・URL状態共有）、操作性・初見ユーザーへの導線・外観の柔軟性に伸びしろがある。現状の課題は次の4点：
+
+1. **キーボード操作が未整備** — 検索フォーカス・結果選択・ビュー切替がすべてマウス前提（GlobalSearch は ESC のみ対応）
+2. **テーマがダーク固定** — `bg-gray-950` / `text-gray-100` 等を全コンポーネントが直接ハードコードしており、明るい環境・印刷・好みに対応できない
+3. **設定が揮発** — 言語・ビューが再訪時に初期化される（URL 共有時を除く）
+4. **初見ユーザーへの導線がない** — 各ビューの目的説明・ショートカット案内・空状態のガイドが無い
+
+本計画は UI/UX のポリッシュに集中し、上記を5フェーズで解消する。新しいプロセスデータやビューは追加しない（読み取り専用アプリの性質を維持）。
+
+確認済みの方針：
+- 改善領域は **4領域すべて**（キーボード操作 / テーマ＋永続化 / オンボーディング / 視覚的洗練・a11y）
+- テーマは **CSS変数トークン化による全面ライト対応**（段階移行ではなく正攻法）
+
+---
+
+## v3.0 フェーズ概要
+
+| Phase | 内容 | 優先度 | 規模 | 依存 |
+|---|---|---|---|---|
+| 1 | 設定永続化基盤（themeStore + localStorage） | ★★★ | S | なし |
+| 2 | テーマトークン化と全面ライト対応 | ★★★ | XL | Phase 1 |
+| 3 | キーボード操作・ショートカット | ★★☆ | M | なし（1と並行可） |
+| 4 | オンボーディング・ヘルプ | ★★☆ | M | Phase 3（?キー連携） |
+| 5 | 視覚的洗練・アクセシビリティ | ★☆☆ | M | Phase 2 |
+
+**推奨着手順:** 1 → 2 →（3 → 4）→ 5。Phase 3 は Phase 1/2 と並行可能。
+
+---
+
+## v3.0 共通実装規約（全フェーズ共通）
+
+1. **ブランチ:** 各フェーズで `feat/*` を切り、完成後 `main` へ `--no-ff` マージ（CLAUDE.md準拠）
+2. **型エラーゼロ:** 各フェーズ完了時に `npm run type-check`（または `npm run build`）でエラーゼロを確認
+3. **ドキュメント同期（最重要・CLAUDE.md準拠）:** 各フェーズのコミットに `docs/requirements.md` と `docs/design.md` の該当セクション更新を必ず含める
+4. **コメント方針:** WHY が非自明な箇所のみ1行。docstring は書かない
+5. **既存パターン踏襲:** 新ストアは `src/store/languageStore.ts` のモジュールシングルトン＋パブサブ方式に揃える。新フックは `src/hooks/` に配置
+
+---
+
+## v3.0 Phase 1: 設定永続化基盤
+
+### ブランチ
+```
+feat/settings-persistence
+```
+
+### 目的
+テーマストアを新設し、言語・テーマ・最終ビューを `localStorage` に保存して再訪時に復元する。Phase 2 のテーマ切替の受け皿を先に整える。
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/store/themeStore.ts` | 新規 | `languageStore.ts` と同型のシングルトン＋パブサブ。`useTheme(): ['dark'\|'light', () => void]`。初期値は localStorage → 無ければ `matchMedia('(prefers-color-scheme: light)')` → 既定 `dark` |
+| `src/store/languageStore.ts` | 変更 | 初期 `currentLang` を localStorage から読み込み、`toggle` 時に保存。SSR非対象なので `window` 直参照で可 |
+| `src/utils/persistence.ts` | 新規 | `loadSetting<T>(key, fallback)` / `saveSetting(key, value)` の薄いラッパ（try/catch で localStorage 不可環境を握りつぶす）。キー定数 `STORAGE_KEYS = { lang, theme, lastView }` を集約 |
+| `src/hooks/useAppUrlState.ts` | 変更 | `parseUrl()` で `view` パラメータが無い場合のみ localStorage の `lastView` を初期値に採用（URL指定があれば常にURL優先）。`setView` 内で `lastView` を保存 |
+
+### themeStore.ts の設計（languageStore 踏襲）
+```typescript
+import { useState } from 'react'
+import { loadSetting, saveSetting, STORAGE_KEYS } from '../utils/persistence'
+
+export type Theme = 'dark' | 'light'
+
+function detectInitial(): Theme {
+  const saved = loadSetting<Theme | null>(STORAGE_KEYS.theme, null)
+  if (saved === 'dark' || saved === 'light') return saved
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+let currentTheme: Theme = detectInitial()
+const listeners = new Set<() => void>()
+
+function applyToDom(theme: Theme) {
+  // Phase 2 が参照: ライト時のみ <html> に .light を付与（既定ダークは無印）
+  document.documentElement.classList.toggle('light', theme === 'light')
+}
+applyToDom(currentTheme)
+
+export function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = useState<Theme>(currentTheme)
+  const toggle = () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark'
+    saveSetting(STORAGE_KEYS.theme, currentTheme)
+    applyToDom(currentTheme)
+    listeners.forEach((l) => l())
+  }
+  useState(() => {
+    const update = () => setTheme(currentTheme)
+    listeners.add(update)
+    return () => listeners.delete(update)
+  })
+  return [theme, toggle]
+}
+```
+> Phase 1 では `.light` クラスを付けてもまだ見た目は変わらない（CSS変数を Phase 2 で定義するため）。本フェーズはストアと永続化の確立まで。
+
+### 受け入れ条件
+- [ ] 言語を切り替えてリロードすると、選択言語が保持される
+- [ ] `localStorage` を消すと既定（EN / `prefers-color-scheme`）に戻る
+- [ ] `?view=graph` 付きURLを開くと、保存ビューより URL が優先される
+- [ ] URL に `view` 無しで開くと、前回見ていたビューが復元される
+- [ ] `useTheme()` でトグルすると `<html class="light">` が付与/除去される（見た目変化は Phase 2）
+
+### ドキュメント更新
+- `design.md` §1.1 構成図・§5 に themeStore / persistence を追記、§1.4 に lastView の localStorage フォールバックを追記
+- `requirements.md` に NFR（設定永続化）を追記
+
+---
+
+## v3.0 Phase 2: テーマトークン化と全面ライト対応
+
+### ブランチ
+```
+feat/theme-tokens
+```
+
+### 目的
+色をセマンティックなCSS変数トークンに集約し、ダーク（既定）/ライトの双方を提供する。全コンポーネントのハードコード色クラスをトークンクラスへ置換する。
+
+### 設計方針：CSS変数 + Tailwind theme 拡張
+
+**1. `src/index.css` にトークンを定義**（RGB成分でalpha対応。既定=ダーク、`.light` で上書き）
+```css
+@layer base {
+  :root {
+    --color-bg: 3 7 18;            /* gray-950 : アプリ最背面 */
+    --color-surface: 17 24 39;     /* gray-900 : ヘッダー/パネル/カード */
+    --color-surface-2: 31 41 55;   /* gray-800 : 入力欄/ホバー面 */
+    --color-line: 55 65 81;        /* gray-700 : 既定ボーダー */
+    --color-line-subtle: 31 41 55; /* gray-800 : 弱ボーダー */
+    --color-content: 243 244 246;  /* gray-100 : 主テキスト */
+    --color-content-2: 156 163 175;/* gray-400 : 副テキスト */
+    --color-content-muted: 107 114 128; /* gray-500 : 補助テキスト */
+    --color-accent: 96 165 250;    /* blue-400 */
+    --color-accent-bg: 23 37 84;   /* blue-950 : バッジ背景 */
+  }
+  :root.light {
+    --color-bg: 255 255 255;
+    --color-surface: 249 250 251;  /* gray-50 */
+    --color-surface-2: 243 244 246;/* gray-100 */
+    --color-line: 209 213 219;     /* gray-300 */
+    --color-line-subtle: 229 231 235; /* gray-200 */
+    --color-content: 17 24 39;     /* gray-900 */
+    --color-content-2: 75 85 99;   /* gray-600 */
+    --color-content-muted: 107 114 128;
+    --color-accent: 37 99 235;     /* blue-600 */
+    --color-accent-bg: 219 234 254;/* blue-100 */
+  }
+  /* React Flow 背景もトークン参照に */
+  .react-flow__background { background-color: rgb(var(--color-bg)); }
+}
+```
+
+**2. `tailwind.config.js` の theme.extend.colors にトークンを登録**
+```js
+theme: { extend: { colors: {
+  bg:               'rgb(var(--color-bg) / <alpha-value>)',
+  surface:          'rgb(var(--color-surface) / <alpha-value>)',
+  'surface-2':      'rgb(var(--color-surface-2) / <alpha-value>)',
+  line:             'rgb(var(--color-line) / <alpha-value>)',
+  'line-subtle':    'rgb(var(--color-line-subtle) / <alpha-value>)',
+  content:          'rgb(var(--color-content) / <alpha-value>)',
+  'content-2':      'rgb(var(--color-content-2) / <alpha-value>)',
+  'content-muted':  'rgb(var(--color-content-muted) / <alpha-value>)',
+  accent:           'rgb(var(--color-accent) / <alpha-value>)',
+  'accent-bg':      'rgb(var(--color-accent-bg) / <alpha-value>)',
+}}}
+```
+> 色名 `border` は Tailwind の `border` ユーティリティと衝突するため `line` を採用。
+
+**3. 置換ルール（全コンポーネント横断）** — 代表的な機械置換：
+
+| 旧クラス | 新クラス |
+|---|---|
+| `bg-gray-950` | `bg-bg` |
+| `bg-gray-900` | `bg-surface` |
+| `bg-gray-800` | `bg-surface-2` |
+| `border-gray-700` | `border-line` |
+| `border-gray-800` | `border-line-subtle` |
+| `text-gray-100/200` | `text-content` |
+| `text-gray-400` | `text-content-2` |
+| `text-gray-500/600` | `text-content-muted` |
+| `ring-offset-gray-950` | `ring-offset-bg` |
+
+置換対象は `src/**/*.tsx` のほぼ全コンポーネント（App.tsx, ProcessMap/*, RelationshipGraph/*, VModelView/*, MatrixView/*, ArtifactFlowView/*, common/*）。`Grep` で `gray-(950|900|800|700|600|500|400|200|100)` を洗い出し、文脈（背景/境界/文字）に応じてトークンへ寄せる。
+
+**4. グループカラー（12グループ×3ロール）のトークン化**
+
+現状 `processGroups.ts` は `bg-blue-900` / `text-blue-200` / `border-blue-600` の固定ダーク値。ライトでは反転が必要。各グループ・各ロールに対しCSS変数を定義する：
+```css
+:root {
+  --grp-sys-surface: 30 58 138;  /* blue-900 */ --grp-sys-line: 37 99 235; --grp-sys-text: 191 219 254;
+  /* …12グループ分… */
+}
+:root.light {
+  --grp-sys-surface: 219 234 254; /* blue-100 */ --grp-sys-line: 59 130 246; --grp-sys-text: 30 64 175; /* blue-800 */
+  /* …12グループ分… */
+}
+```
+- `tailwind.config.js` に `grp-sys-surface` 等のトークン色を登録（12×3=36色）。あるいは `safelist` ではなくトークン色名で静的記述
+- `processGroups.ts` の各クラスを `bg-grp-sys-surface` / `text-grp-sys-text` / `border-grp-sys-line` に変更
+- `ProcessCard.tsx` の `hover:${groupMeta.color}` 等の動的合成もトークンクラス名で同様に機能（クラス名が静的に存在すれば Tailwind がパージしない点に注意 → tailwind.config の colors に全36色を明示登録すればパージ安全）
+
+**5. React Flow 用 hex 色（CustomNodes.tsx / graphUtils.ts / vmodelLayout.ts / sankey*）への対応**
+
+reactflow はインラインスタイルで hex を要求する箇所がある（design.md §6.2）。テーマ変更時に再評価が必要：
+```typescript
+// src/utils/themeColors.ts（新規）
+export function cssVar(name: string): string {
+  // '30 58 138' → 'rgb(30 58 138)'
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return v ? `rgb(${v})` : 'transparent'
+}
+export function groupColorHex(groupId: ProcessGroup, role: 'surface'|'line'|'text'): string {
+  return cssVar(`--grp-${groupId.toLowerCase()}-${role}`)
+}
+```
+- グラフ系コンポーネントは `useTheme()` を購読し、テーマ変更時に nodes/edges を再生成（`useMemo` の依存配列に `theme` を追加）。これにより hex 色がテーマ追従する
+- OutcomeNode / ItemNode の固定 hex（indigo / green / blue）も CSS変数化し `cssVar()` 経由に統一
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/index.css` | 変更 | トークン定義（共通＋グループ12×3）、React Flow背景のトークン化 |
+| `tailwind.config.js` | 変更 | `theme.extend.colors` にセマンティック＋グループトークンを登録 |
+| `src/utils/themeColors.ts` | 新規 | `cssVar()` / `groupColorHex()` ヘルパー |
+| `src/data/processGroups.ts` | 変更 | クラス文字列をトークンクラスへ |
+| `src/App.tsx` | 変更 | ヘッダーにテーマ切替ボタン（lucide `Sun`/`Moon`）を言語トグル隣に追加。`useTheme()` 使用 |
+| `src/**/*.tsx`（全ビュー・共通） | 変更 | gray-* ハードコードをトークンクラスへ機械置換 |
+| グラフ系（CustomNodes/graphUtils/vmodelLayout/SankeyCanvas 等） | 変更 | hex を `cssVar()`/`groupColorHex()` 経由に。`useTheme()` を依存に追加し再生成 |
+
+### 受け入れ条件
+- [ ] ヘッダーのテーマ切替ボタンでライト/ダークが即時切替わる
+- [ ] ライトテーマで全5ビューが可読（コントラスト確保、白飛び/黒潰れなし）
+- [ ] グループカラーがライト/ダーク双方で判別可能（ProcessCard・グラフノード・サンキー帯）
+- [ ] React Flow のノード/エッジ色がテーマに追従する
+- [ ] テーマ選択がリロード後も保持される（Phase 1 連携）
+- [ ] `npm run build` が型エラーゼロで成功
+
+### ドキュメント更新
+- `design.md` §6（スタイル設計）を全面改訂：トークン表・グループトークン表・hex取得方針を記載。§1.2 にテーマ機構を追記
+- `requirements.md` にテーマ切替の機能要件を追記
+
+---
+
+## v3.0 Phase 3: キーボード操作・ショートカット
+
+### ブランチ
+```
+feat/keyboard-shortcuts
+```
+
+### 目的
+主要操作をキーボードで完結できるようにする。検索フォーカス・結果選択・ビュー切替・ヘルプ表示を追加。
+
+### ショートカット仕様
+
+| キー | 動作 | 実装箇所 |
+|---|---|---|
+| `Cmd/Ctrl + K` または `/` | 検索ボックスにフォーカス | GlobalSearch + App |
+| `Esc` | 検索を閉じる（既存）/ 開いているパネル・ポップアップを閉じる | 各ビュー |
+| `↑` `↓` | 検索結果のフラットリストを上下移動 | GlobalSearch |
+| `Enter` | 選択中の検索結果へ遷移 | GlobalSearch |
+| `1`〜`5` | ビュー切替（map/graph/vmodel/matrix/flow）※入力欄フォーカス時は無効 | App |
+| `?`（Shift+/） | ヘルプオーバーレイ開閉（Phase 4 で中身実装、Phase 3 ではトグルstateのみ用意） | App |
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/hooks/useKeyboardShortcuts.ts` | 新規 | グローバルキーハンドラ。`isTypingTarget(e)`（input/textarea/contenteditable 判定）でテキスト入力中は数字/`?`/`/`を無効化。コールバック群 `{ onSearch, onView, onHelp }` を受け取る |
+| `src/components/common/GlobalSearch.tsx` | 変更 | `forwardRef` で `focus()` を App に公開、または `imperative` な focus 用 ref。結果を `flatResults` 配列化し `activeIndex` state を追加。`onKeyDown` で ↑↓/Enter 処理。アクティブ項目に強調スタイル（`bg-surface-2`）と `aria-selected` |
+| `src/App.tsx` | 変更 | `useKeyboardShortcuts` を呼び、`searchRef.current?.focus()` / `setView` / `setHelpOpen(true)` を配線。`helpOpen` state を新設（Phase 4 が消費） |
+
+### useKeyboardShortcuts.ts の骨子
+```typescript
+interface Handlers {
+  onSearchFocus: () => void
+  onSelectView: (index: number) => void  // 0..4
+  onToggleHelp: () => void
+}
+export function useKeyboardShortcuts(h: Handlers) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = isTypingTarget(e.target)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); h.onSearchFocus(); return }
+      if (typing) return
+      if (e.key === '/') { e.preventDefault(); h.onSearchFocus(); return }
+      if (e.key === '?') { h.onToggleHelp(); return }
+      if (e.key >= '1' && e.key <= '5') { h.onSelectView(Number(e.key) - 1) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [h])
+}
+```
+
+### 受け入れ条件
+- [ ] `Cmd/Ctrl+K` または `/` で検索にフォーカスが移る
+- [ ] 検索結果を `↑↓` で移動でき、選択行が視覚的に分かる
+- [ ] `Enter` で選択中の結果へ遷移する（マウスクリックと同等）
+- [ ] `1`〜`5` でビューが切り替わる（検索入力中は数字が無効）
+- [ ] `?` でヘルプ表示トグル（Phase 4 で中身が出る）
+- [ ] 既存の Esc 動作が壊れていない
+
+### ドキュメント更新
+- `design.md` §4 に useKeyboardShortcuts を追記、GlobalSearch の状態（activeIndex）を更新
+- `requirements.md` に操作性要件を追記
+
+---
+
+## v3.0 Phase 4: オンボーディング・ヘルプ
+
+### ブランチ
+```
+feat/onboarding-help
+```
+
+### 目的
+初見ユーザーが各ビューの目的とショートカットを把握できる導線を用意する。
+
+### 機能
+1. **ヘルプオーバーレイ**（`?` キー / ヘッダーの `?` ボタンで開く）：ショートカット一覧＋5ビューの1行説明。Esc / 背景クリックで閉じる
+2. **初回起動ガイド**：初回のみ「ようこそ」+ ビュータブとテーマ/検索の場所を案内する軽量バナー or 1ステップのスポットライト。localStorage フラグ `onboarded` で2回目以降は非表示
+3. **空状態の案内文**：選択前のビュー（例：グラフBPレベルでフォーカス未選択、検索結果0件、フローのパネル未選択）に「○○をクリックしてください」等のガイドテキスト。既存の空状態を洗い出して補強
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/components/common/HelpOverlay.tsx` | 新規 | モーダル。ショートカット表＋ビュー説明。`{ open, onClose, lang }`。EN/JA 両対応。フォーカストラップと Esc 対応 |
+| `src/components/common/OnboardingBanner.tsx` | 新規 | 初回のみ表示する閉じれるバナー。`persistence` の `onboarded` フラグを参照・更新 |
+| `src/data/viewMeta.ts` | 新規 | 5ビューの `{ id, titleEn/Ja, descEn/Ja }` を集約（App の VIEWS と重複させず、VIEWS を拡張してもよい） |
+| `src/App.tsx` | 変更 | `?` ボタンをヘッダーに追加。`HelpOverlay` / `OnboardingBanner` をレンダリング。Phase 3 の `helpOpen` を接続 |
+| 各ビュー（空状態箇所） | 変更 | ガイドテキスト追加（現状の空状態を確認のうえ最小限） |
+
+### 受け入れ条件
+- [ ] `?` キー / ヘッダー `?` ボタンでヘルプが開き、ショートカットとビュー説明が読める
+- [ ] ヘルプは Esc / 背景クリック / 閉じるボタンで閉じる
+- [ ] 初回アクセス時のみガイドバナーが出て、閉じると以後表示されない（localStorage）
+- [ ] 主要な空状態に操作ガイドが表示される
+- [ ] EN/JA 切替でヘルプ・ガイド文言が変わる
+
+### ドキュメント更新
+- `design.md` §4 に HelpOverlay / OnboardingBanner / viewMeta を追記
+- `requirements.md` にオンボーディング要件を追記
+
+---
+
+## v3.0 Phase 5: 視覚的洗練・アクセシビリティ
+
+### ブランチ
+```
+feat/polish-a11y
+```
+
+### 目的
+トランジション・フィードバック・レスポンシブ・a11y を底上げし、全体の完成度を上げる。
+
+### 内容
+1. **トランジション**：ビュー切替・詳細パネル/ポップアップ開閉に軽い transition（Tailwind `transition` + opacity/translate。ライブラリ追加なし）。`prefers-reduced-motion` を尊重して無効化
+2. **トースト通知**：PNG エクスポート完了・URL コピー等の操作フィードバック。`src/components/common/Toast.tsx` + 簡易な発火関数（モジュールシングルトンのパブサブ、languageStore 方式）。GraphExportButton 等から呼ぶ
+3. **レスポンシブ**：ヘッダーが狭幅で破綻しないよう、ビュータブのラベルを狭幅でアイコンのみ化（`hidden sm:inline`）、検索ボックス幅の可変化、`flex-wrap` 検討
+4. **アクセシビリティ**：
+   - インタラクティブ要素に `aria-label`（アイコンのみボタン：テーマ/言語/検索クリア/エクスポート/ヘルプ/閉じる）
+   - ビュータブを `role="tablist"` / `role="tab"` / `aria-selected` 化
+   - フォーカスリングの可視化（トークン `focus-visible:ring-2 focus-visible:ring-accent`）をボタン共通に
+   - モーダル（HelpOverlay / CellDetailPopup）のフォーカストラップと `role="dialog"` / `aria-modal`
+
+### 作成・変更ファイル
+
+| ファイル | 種別 | 内容 |
+|---|---|---|
+| `src/components/common/Toast.tsx` | 新規 | トースト表示＋ `toast(message)` 発火関数（シングルトン pubsub）。自動消滅（3秒） |
+| `src/App.tsx` | 変更 | `<Toast />` をルートに配置。ヘッダーのレスポンシブ化・タブの role 付与・aria-label 付与。ビュー切替のフェード |
+| `src/components/RelationshipGraph/GraphExportButton.tsx` | 変更 | エクスポート完了時に `toast()` |
+| 各ビューの詳細パネル/ポップアップ | 変更 | 開閉トランジション・`role="dialog"`・フォーカストラップ（HelpOverlay と共通ユーティリティ化検討） |
+| `src/index.css` | 変更 | `prefers-reduced-motion` でトランジション無効化する `@media` |
+
+### 受け入れ条件
+- [ ] ビュー切替・パネル開閉に滑らかなトランジションが付く
+- [ ] `prefers-reduced-motion: reduce` でアニメーションが無効になる
+- [ ] PNG エクスポート時にトーストが表示される
+- [ ] 狭幅ウィンドウでヘッダーが破綻しない（タブがアイコン化 or 折返し）
+- [ ] アイコンのみボタンに `aria-label` がある（スクリーンリーダ読み上げ確認）
+- [ ] Tab キーでフォーカス移動でき、フォーカスリングが見える
+- [ ] モーダルが `role="dialog"` を持ち、Esc で閉じ、フォーカスが内側に留まる
+
+### ドキュメント更新
+- `design.md` §6 にトランジション/フォーカス方針、§4 に Toast を追記
+- `requirements.md` に a11y / レスポンシブ要件（NFR）を追記
+
+---
+
+## v3.0 検証方法（エンドツーエンド）
+
+各フェーズ完了時：
+1. `npm run type-check`（または `npm run build`）でエラーゼロ
+2. `npm run dev` で起動し、対象フェーズの受け入れ条件を手動確認
+3. 全5ビュー（map/graph/vmodel/matrix/flow）×EN/JA×ライト/ダーク の主要組合せを目視
+4. `git status` で `docs/requirements.md`・`docs/design.md` が同コミットに含まれることを確認（CLAUDE.md準拠）
+
+全フェーズ完了後：
+- ライト/ダーク双方で全ビューを巡回し、コントラスト・グループ色判別・テキスト可読性を確認
+- キーボードのみ（マウス不使用）で「検索→遷移→ビュー切替→ヘルプ」が完結することを確認
+- DevTools の Lighthouse Accessibility または手動 Tab 走査で a11y を確認
+
+---
+
+## v3.0 リスク・留意点
+
+- **Phase 2 が最大の工数**：色クラス置換は全コンポーネントに及ぶ。`Grep` で `gray-\d{3}` を網羅抽出し、機械的に置換 → 各ビューを目視回帰。グループ色36トークンは Tailwind パージ対象外にするため `tailwind.config.js` の `colors` に必ず明示登録する
+- **React Flow の hex 追従**：`useMemo` 依存に `theme` を追加し忘れるとテーマ切替でノード色が更新されない。グラフ系4ビュー（graph/vmodel/flow とプロセスレベル）で要確認
+- **ライト時のグループ色設計**：`*-100` 背景 + `*-800` テキストを基準にコントラスト比 4.5:1 を目安に調整
+- **既存 URL 状態との非干渉**：テーマ・言語は URL に載せず localStorage のみ（共有URLの再現性は現行どおりビュー状態に限定）
