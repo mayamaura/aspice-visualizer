@@ -45,6 +45,9 @@ export default function App() {
           <div className="text-blue-400 font-mono text-xs font-bold bg-blue-950 border border-blue-700 px-2 py-0.5 rounded">
             ASPICE 4.0
           </div>
+          <div className="text-cyan-400 font-mono text-xs font-bold bg-cyan-950 border border-cyan-700 px-2 py-0.5 rounded">
+            CS 2.0
+          </div>
           <span className="text-gray-200 font-semibold text-sm">
             {lang === 'en' ? 'Process Visualizer' : 'プロセスビジュアライザー'}
           </span>

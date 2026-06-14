@@ -1,6 +1,6 @@
 # ソフトウェア設計書
 
-**プロジェクト名:** Automotive SPICE 4.0 Process Visualizer  
+**プロジェクト名:** Automotive SPICE 4.0 / CS 2.0 Process Visualizer  
 **バージョン:** 3.0  
 **最終更新:** 2026-06-14  
 
