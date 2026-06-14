@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { GraphLevel } from '../components/RelationshipGraph/graphUtils'
+import { loadSetting, saveSetting, STORAGE_KEYS } from '../utils/persistence'
 
 type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
 
@@ -16,10 +17,20 @@ const VALID_LEVELS: GraphLevel[] = ['process', 'bp', 'item']
 
 function parseUrl(): AppUrlState {
   const p = new URLSearchParams(window.location.search)
-  const view = p.get('view') as ViewId
+  const viewParam = p.get('view') as ViewId
   const level = p.get('level') as GraphLevel
+
+  // URL に view が無い場合のみ lastView を初期値に採用（URL指定があれば常にURL優先）
+  let view: ViewId
+  if (VALID_VIEWS.includes(viewParam)) {
+    view = viewParam
+  } else {
+    const saved = loadSetting<ViewId | null>(STORAGE_KEYS.lastView, null)
+    view = saved && VALID_VIEWS.includes(saved) ? saved : 'map'
+  }
+
   return {
-    view: VALID_VIEWS.includes(view) ? view : 'map',
+    view,
     process: p.get('process'),
     level: VALID_LEVELS.includes(level) ? level : 'process',
     focus: p.get('focus'),
@@ -49,6 +60,7 @@ export function useAppUrlState() {
 
   // ビュー切替は pushState（back/forward の履歴エントリを作る）
   const setView = useCallback((view: ViewId) => {
+    saveSetting(STORAGE_KEYS.lastView, view)
     setUrl(prev => {
       const next: AppUrlState = { ...prev, view }
       history.pushState(null, '', toSearch(next))

@@ -23,11 +23,9 @@ function itemPrefix(id: string): string {
 
 // プレフィックスの表示ラベル（英語）
 // INFORMATION_ITEMS からそのプレフィックスを持つ最初の item の名称先頭語を用いる
-function prefixLabel(prefix: string, lang: Language): string {
+function prefixLabel(prefix: string, _lang: Language): string {
   const sample = INFORMATION_ITEMS.find((item) => itemPrefix(item.id) === prefix)
   if (!sample) return `${prefix}-XX`
-  const name = lang === 'en' ? sample.name.en : sample.name.ja
-  // 名称が長い場合は短縮しない（SankeyCanvas 側でクリップ）
   return `${prefix}-XX`
 }
 
@@ -102,7 +100,6 @@ export function buildProcessSankeyData(
   lang: Language,
 ): { nodes: SankeyNode[]; links: SankeyLink[] } {
   const groupProcs = processes.filter((p) => p.group === group)
-  const groupMeta = PROCESS_GROUPS.find((g) => g.id === group)!
   const baseColor = groupHexColor(group)
 
   // 左ノード（個別プロセス）
