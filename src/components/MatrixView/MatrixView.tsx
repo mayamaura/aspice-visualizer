@@ -166,7 +166,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 return (
                   <th
                     key={id}
-                    className="sticky top-6 z-20 bg-surface border border-line text-center cursor-pointer hover:bg-grp-sys-surface hover:text-grp-sys-text transition-colors"
+                    className="sticky top-6 z-20 bg-surface border border-line text-center cursor-pointer hover:bg-blue-900 hover:text-blue-300 transition-colors"
                     style={{ minWidth: '24px', width: '24px' }}
                     title={item ? t(item.name, lang) : id}
                     onClick={() => handleColumnHeaderClick(id)}
