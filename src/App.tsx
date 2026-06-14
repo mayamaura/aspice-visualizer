@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Map, GitBranch, Network, Grid2x2, Workflow } from 'lucide-react'
+import { Map, GitBranch, Network, Grid2x2, Workflow, Sun, Moon } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
 import { VModelView } from './components/VModelView/VModelView'
@@ -7,6 +7,7 @@ import { MatrixView } from './components/MatrixView/MatrixView'
 import { ArtifactFlowView } from './components/ArtifactFlowView/ArtifactFlowView'
 import { GlobalSearch } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
+import { useTheme } from './store/themeStore'
 import { useAppUrlState } from './hooks/useAppUrlState'
 import type { NavigateTarget } from './utils/searchUtils'
 
@@ -24,6 +25,7 @@ export default function App() {
   const { url, setView, setProcess, setGraphState, setFlowState } = useAppUrlState()
   const view = url.view
   const [lang, toggleLang] = useLang()
+  const [theme, toggleTheme] = useTheme()
   const [pendingNav, setPendingNav] = useState<NavigateTarget | null>(null)
 
   const handleNavigate = (target: NavigateTarget) => {
@@ -38,29 +40,29 @@ export default function App() {
   const handleNavConsumed = () => setPendingNav(null)
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-bg text-content">
       {/* Top Nav */}
-      <header className="flex items-center gap-4 px-5 py-3 bg-gray-900 border-b border-gray-800 shrink-0">
+      <header className="flex items-center gap-4 px-5 py-3 bg-surface border-b border-line-subtle shrink-0">
         <div className="flex items-center gap-2 mr-4">
-          <div className="text-blue-400 font-mono text-xs font-bold bg-blue-950 border border-blue-700 px-2 py-0.5 rounded">
+          <div className="text-accent font-mono text-xs font-bold bg-accent-bg border border-accent px-2 py-0.5 rounded">
             ASPICE 4.0
           </div>
           <div className="text-cyan-400 font-mono text-xs font-bold bg-cyan-950 border border-cyan-700 px-2 py-0.5 rounded">
             CS 2.0
           </div>
-          <span className="text-gray-200 font-semibold text-sm">
+          <span className="text-content font-semibold text-sm">
             {lang === 'en' ? 'Process Visualizer' : 'プロセスビジュアライザー'}
           </span>
         </div>
 
         {/* View Tabs */}
-        <nav className="flex rounded-lg overflow-hidden border border-gray-700">
+        <nav className="flex rounded-lg overflow-hidden border border-line">
           {VIEWS.map(({ id, icon: Icon, labelEn, labelJa }) => (
             <button
               key={id}
               onClick={() => setView(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-r border-gray-700 last:border-r-0 ${
-                view === id ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-r border-line last:border-r-0 ${
+                view === id ? 'bg-surface-2 text-content' : 'text-content-2 hover:text-content hover:bg-surface-2'
               }`}
             >
               <Icon size={13} />
@@ -73,14 +75,23 @@ export default function App() {
         <GlobalSearch lang={lang} onNavigate={handleNavigate} />
 
         <div className="ml-auto flex items-center gap-3">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-line text-content-2 hover:text-content hover:border-content-muted transition-colors"
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          >
+            {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+          </button>
+
           {/* Language Toggle */}
           <button
             onClick={toggleLang}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 text-xs font-medium text-gray-300 hover:text-white hover:border-gray-500 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line text-xs font-medium text-content-2 hover:text-content hover:border-content-muted transition-colors"
           >
-            <span className={lang === 'en' ? 'text-white' : 'text-gray-500'}>EN</span>
-            <span className="text-gray-600">/</span>
-            <span className={lang === 'ja' ? 'text-white' : 'text-gray-500'}>JA</span>
+            <span className={lang === 'en' ? 'text-content' : 'text-content-muted'}>EN</span>
+            <span className="text-content-muted">/</span>
+            <span className={lang === 'ja' ? 'text-content' : 'text-content-muted'}>JA</span>
           </button>
         </div>
       </header>

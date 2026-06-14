@@ -4,8 +4,63 @@
 
 @layer base {
   html { font-family: 'Inter', system-ui, sans-serif; }
-  body { @apply bg-gray-950 text-gray-100; }
-}
+  body { @apply bg-bg text-content; }
 
-/* React Flow overrides */
-.react-flow__background { background-color: #030712; }
+  /* ── セマンティックトークン ──────────────────────────────── */
+  :root {
+    --color-bg:            3 7 18;        /* gray-950 */
+    --color-surface:       17 24 39;      /* gray-900 */
+    --color-surface-2:     31 41 55;      /* gray-800 */
+    --color-line:          55 65 81;      /* gray-700 */
+    --color-line-subtle:   31 41 55;      /* gray-800 */
+    --color-content:       243 244 246;   /* gray-100 */
+    --color-content-2:     156 163 175;   /* gray-400 */
+    --color-content-muted: 107 114 128;   /* gray-500 */
+    --color-accent:        96 165 250;    /* blue-400 */
+    --color-accent-bg:     23 37 84;      /* blue-950 */
+
+    /* ── グループトークン（ダーク） ─────────── */
+    --grp-sys-surface: 30 58 138;   --grp-sys-line: 37 99 235;    --grp-sys-text: 191 219 254;   /* blue */
+    --grp-swe-surface: 76 29 149;   --grp-swe-line: 124 58 237;   --grp-swe-text: 221 214 254;   /* violet */
+    --grp-hwe-surface: 22 78 99;    --grp-hwe-line: 8 145 178;    --grp-hwe-text: 165 243 252;   /* cyan */
+    --grp-val-surface: 26 46 5;     --grp-val-line: 101 163 13;   --grp-val-text: 217 249 157;   /* lime */
+    --grp-mle-surface: 88 28 135;   --grp-mle-line: 147 51 234;   --grp-mle-text: 233 213 255;   /* purple */
+    --grp-man-surface: 120 53 15;   --grp-man-line: 217 119 6;    --grp-man-text: 253 230 138;   /* amber */
+    --grp-sup-surface: 20 83 45;    --grp-sup-line: 22 163 74;    --grp-sup-text: 187 247 208;   /* green */
+    --grp-pim-surface: 113 63 18;   --grp-pim-line: 202 138 4;    --grp-pim-text: 254 240 138;   /* yellow */
+    --grp-acq-surface: 124 45 18;   --grp-acq-line: 234 88 12;    --grp-acq-text: 254 215 170;   /* orange */
+    --grp-spl-surface: 136 19 55;   --grp-spl-line: 225 29 72;    --grp-spl-text: 254 205 211;   /* rose */
+    --grp-reu-surface: 19 78 74;    --grp-reu-line: 13 148 136;   --grp-reu-text: 153 246 228;   /* teal */
+    --grp-sec-surface: 127 29 29;   --grp-sec-line: 220 38 38;    --grp-sec-text: 254 202 202;   /* red */
+  }
+
+  :root.light {
+    --color-bg:            255 255 255;
+    --color-surface:       249 250 251;   /* gray-50 */
+    --color-surface-2:     243 244 246;   /* gray-100 */
+    --color-line:          209 213 219;   /* gray-300 */
+    --color-line-subtle:   229 231 235;   /* gray-200 */
+    --color-content:       17 24 39;      /* gray-900 */
+    --color-content-2:     75 85 99;      /* gray-600 */
+    --color-content-muted: 107 114 128;   /* gray-500 */
+    --color-accent:        37 99 235;     /* blue-600 */
+    --color-accent-bg:     219 234 254;   /* blue-100 */
+
+    /* ── グループトークン（ライト） ─────────── */
+    --grp-sys-surface: 219 234 254;  --grp-sys-line: 59 130 246;   --grp-sys-text: 30 64 175;    /* blue */
+    --grp-swe-surface: 237 233 254;  --grp-swe-line: 139 92 246;   --grp-swe-text: 55 48 163;    /* violet */
+    --grp-hwe-surface: 207 250 254;  --grp-hwe-line: 6 182 212;    --grp-hwe-text: 21 94 117;    /* cyan */
+    --grp-val-surface: 236 252 203;  --grp-val-line: 132 204 22;   --grp-val-text: 63 98 18;     /* lime */
+    --grp-mle-surface: 243 232 255;  --grp-mle-line: 168 85 247;   --grp-mle-text: 107 33 168;   /* purple */
+    --grp-man-surface: 254 243 199;  --grp-man-line: 245 158 11;   --grp-man-text: 146 64 14;    /* amber */
+    --grp-sup-surface: 220 252 231;  --grp-sup-line: 34 197 94;    --grp-sup-text: 22 101 52;    /* green */
+    --grp-pim-surface: 254 252 232;  --grp-pim-line: 234 179 8;    --grp-pim-text: 133 77 14;    /* yellow */
+    --grp-acq-surface: 255 237 213;  --grp-acq-line: 249 115 22;   --grp-acq-text: 154 52 18;    /* orange */
+    --grp-spl-surface: 255 228 230;  --grp-spl-line: 244 63 94;    --grp-spl-text: 159 18 57;    /* rose */
+    --grp-reu-surface: 204 251 241;  --grp-reu-line: 20 184 166;   --grp-reu-text: 17 94 89;     /* teal */
+    --grp-sec-surface: 254 226 226;  --grp-sec-line: 239 68 68;    --grp-sec-text: 153 27 27;    /* red */
+  }
+
+  /* React Flow 背景のトークン参照 */
+  .react-flow__background { background-color: rgb(var(--color-bg)); }
+}

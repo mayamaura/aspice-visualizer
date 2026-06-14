@@ -32,7 +32,6 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
   const [highlightProcessId, setHighlightProcessId] = useState<string | null>(null)
   const isFirstRender = useRef(true)
 
-  // selected 変更を URL に反映
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
@@ -41,7 +40,6 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
     onProcessChange?.(selected?.id ?? null)
   }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // グローバル検索からのナビゲーション処理
   useEffect(() => {
     if (!navigateTo || navigateTo.type !== 'process') return
     const p = (ALL_PROCESSES as Process[]).find((proc) => proc.id === navigateTo.processId)
@@ -88,7 +86,7 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
                     <div className={`font-mono text-sm font-bold ${group.textColor}`}>{group.id}</div>
                     <div className={`text-xs ${group.textColor} opacity-80 mt-0.5`}>{t(group.name, lang)}</div>
                   </div>
-                  <div className="p-2 space-y-1.5 bg-gray-900/50">
+                  <div className="p-2 space-y-1.5 bg-surface/50">
                     {processes.map((p) => (
                       <ProcessCard
                         key={p.id}

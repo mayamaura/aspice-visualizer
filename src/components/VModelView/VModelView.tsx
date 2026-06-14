@@ -14,6 +14,8 @@ import { buildVModelGraph, VMODEL_PROCESS_IDS } from './vmodelLayout'
 import { ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
 import type { Language, Process } from '../../types/aspice'
 import type { NavigateTarget } from '../../utils/searchUtils'
+import { useTheme } from '../../store/themeStore'
+import { cssVar } from '../../utils/themeColors'
 
 const nodeTypes = { processNode: ProcessNode }
 
@@ -25,8 +27,9 @@ interface Props {
 
 export function VModelView({ lang, navigateTo, onNavConsumed }: Props) {
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
+  const [theme] = useTheme()
 
-  const { nodes, edges } = useMemo(() => buildVModelGraph(lang), [lang])
+  const { nodes, edges } = useMemo(() => buildVModelGraph(lang), [lang, theme])
 
   const handleNodeClick = useCallback<NodeMouseHandler>((_e, node) => {
     const p = ALL_PROCESSES.find((p) => p.id === node.id)
@@ -65,26 +68,26 @@ export function VModelView({ lang, navigateTo, onNavConsumed }: Props) {
           nodesConnectable={false}
           elementsSelectable={true}
         >
-          <Background color="#374151" gap={20} />
+          <Background color={cssVar('--color-line')} gap={20} />
           <Controls />
           <MiniMap
-            nodeColor={(n) => (n.data?.border as string) ?? '#6b7280'}
-            style={{ background: '#111827' }}
+            nodeColor={(n) => (n.data?.border as string) ?? cssVar('--color-line')}
+            style={{ background: cssVar('--color-bg') }}
           />
 
           {/* フェーズラベル */}
           <Panel position="top-left">
-            <div className="text-xs text-gray-400 bg-gray-900 px-3 py-1.5 rounded border border-gray-700">
+            <div className="text-xs text-content-2 bg-surface px-3 py-1.5 rounded border border-line">
               {lang === 'en' ? '← Specification / Design' : '← 仕様・設計フェーズ'}
             </div>
           </Panel>
           <Panel position="top-center">
-            <div className="text-xs text-gray-500 bg-gray-900 px-3 py-1.5 rounded border border-gray-800">
+            <div className="text-xs text-content-muted bg-surface px-3 py-1.5 rounded border border-line-subtle">
               {lang === 'en' ? 'V-Model (SYS / SWE / HWE)' : 'Vモデル（SYS / SWE / HWE）'}
             </div>
           </Panel>
           <Panel position="top-right">
-            <div className="text-xs text-gray-400 bg-gray-900 px-3 py-1.5 rounded border border-gray-700">
+            <div className="text-xs text-content-2 bg-surface px-3 py-1.5 rounded border border-line">
               {lang === 'en' ? 'Integration / Verification →' : '統合・検証フェーズ →'}
             </div>
           </Panel>

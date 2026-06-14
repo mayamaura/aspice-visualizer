@@ -16,9 +16,9 @@ interface Props {
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border border-gray-800 rounded-lg overflow-hidden">
+    <div className="border border-line-subtle rounded-lg overflow-hidden">
       <button
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-900 hover:bg-gray-800 transition-colors text-sm font-semibold text-gray-200"
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface hover:bg-surface-2 transition-colors text-sm font-semibold text-content"
         onClick={() => setOpen(!open)}
       >
         {title}
@@ -36,26 +36,25 @@ function CharacteristicList({ characteristics, lang }: { characteristics: Charac
         const text = lang === 'ja' && c.ja ? c.ja : c.en
         if (c.type === 'category') {
           return (
-            <div key={i} className="text-xs font-semibold text-gray-300 mt-2 first:mt-0">
+            <div key={i} className="text-xs font-semibold text-content mt-2 first:mt-0">
               {text}
             </div>
           )
         }
         if (c.type === 'note') {
           return (
-            <div key={i} className="text-xs text-gray-500 italic leading-relaxed">
+            <div key={i} className="text-xs text-content-muted italic leading-relaxed">
               {text}
             </div>
           )
         }
-        // bullet: split by \n- for sub-items
         const lines = text.split('\n')
         return (
-          <div key={i} className="text-xs text-gray-400">
-            <span className="text-gray-600 mr-1">•</span>
+          <div key={i} className="text-xs text-content-2">
+            <span className="text-content-muted mr-1">•</span>
             {lines[0]}
             {lines.slice(1).map((sub, j) => (
-              <div key={j} className="ml-3 text-gray-500">{sub}</div>
+              <div key={j} className="ml-3 text-content-muted">{sub}</div>
             ))}
           </div>
         )
@@ -82,16 +81,16 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
   }, [process])
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 border-l border-gray-800">
+    <div className="flex flex-col h-full bg-bg border-l border-line-subtle">
       {/* Header */}
-      <div className={`px-5 py-4 ${groupMeta.color} border-b border-gray-800 flex items-start justify-between gap-3`}>
+      <div className={`px-5 py-4 ${groupMeta.color} border-b border-line-subtle flex items-start justify-between gap-3`}>
         <div>
           <div className={`font-mono text-sm font-bold ${groupMeta.textColor} mb-1`}>{process.id}</div>
           <div className={`text-lg font-semibold ${groupMeta.textColor} leading-snug`}>
             {t(process.name, lang)}
           </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white mt-0.5 shrink-0">
+        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0">
           <X size={18} />
         </button>
       </div>
@@ -100,7 +99,7 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {/* Purpose */}
         <Section title={lang === 'en' ? 'Purpose' : 'プロセス目的'}>
-          <p className="text-sm text-gray-400 leading-relaxed">{t(process.purpose, lang)}</p>
+          <p className="text-sm text-content-2 leading-relaxed">{t(process.purpose, lang)}</p>
         </Section>
 
         {/* Outcomes */}
@@ -111,7 +110,7 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
                 <span className={`font-mono text-xs shrink-0 mt-0.5 ${groupMeta.textColor} opacity-80`}>
                   {process.id}.{oc.id}
                 </span>
-                <span className="text-gray-300 leading-relaxed">{t(oc.text, lang)}</span>
+                <span className="text-content leading-relaxed">{t(oc.text, lang)}</span>
               </li>
             ))}
           </ol>
@@ -121,23 +120,23 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
         <Section title={lang === 'en' ? `Base Practices (${process.base_practices.length})` : `基本プラクティス (${process.base_practices.length})`}>
           <div className="space-y-3">
             {process.base_practices.map((bp) => (
-              <div key={bp.id} className="bg-gray-900 rounded-lg p-3 space-y-1.5">
+              <div key={bp.id} className="bg-surface rounded-lg p-3 space-y-1.5">
                 <div className="flex gap-2 items-baseline">
                   <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{bp.id}</span>
-                  <span className="text-sm font-medium text-gray-200">{t(bp.name, lang)}</span>
+                  <span className="text-sm font-medium text-content">{t(bp.name, lang)}</span>
                 </div>
-                <p className="text-xs text-gray-400 leading-relaxed">{t(bp.description, lang)}</p>
+                <p className="text-xs text-content-2 leading-relaxed">{t(bp.description, lang)}</p>
                 <div className="flex flex-wrap gap-1 pt-1">
                   {bp.outcome_refs.map((refId) => (
-                    <span key={refId} className="text-xs bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded font-mono">
+                    <span key={refId} className="text-xs bg-surface-2 text-content-2 px-1.5 py-0.5 rounded font-mono">
                       →{process.id}.{refId}
                     </span>
                   ))}
                 </div>
                 {bp.notes.length > 0 && (
-                  <div className="pt-1 border-t border-gray-800 space-y-1">
+                  <div className="pt-1 border-t border-line-subtle space-y-1">
                     {bp.notes.map((note) => (
-                      <div key={note.id} className="text-xs text-gray-500 italic leading-relaxed">
+                      <div key={note.id} className="text-xs text-content-muted italic leading-relaxed">
                         {t(note.text, lang)}
                       </div>
                     ))}
@@ -154,16 +153,16 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
             {process.output_information_items.map((poi) => {
               const item = INFORMATION_ITEMS.find((it) => it.id === poi.id)
               return (
-                <div key={poi.id} className="bg-gray-900 rounded-lg p-3">
+                <div key={poi.id} className="bg-surface rounded-lg p-3">
                   <div className="flex gap-2 items-baseline mb-1">
                     <span className="font-mono text-xs text-green-400 font-bold">{poi.id}</span>
-                    <span className="text-sm text-gray-200">
+                    <span className="text-sm text-content">
                       {item ? t(item.name, lang) : poi.id}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {poi.outcome_refs.map((refId) => (
-                      <span key={refId} className="text-xs bg-gray-800 text-gray-500 px-1 py-0.5 rounded font-mono">
+                      <span key={refId} className="text-xs bg-surface-2 text-content-muted px-1 py-0.5 rounded font-mono">
                         oc.{refId}
                       </span>
                     ))}
@@ -187,17 +186,17 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
               {relatedProcesses.map(({ process: rp, sharedItems }) => {
                 const rpGroup = PROCESS_GROUPS.find((g) => g.id === rp.group)!
                 return (
-                  <div key={rp.id} className="bg-gray-900 rounded-lg p-3">
+                  <div key={rp.id} className="bg-surface rounded-lg p-3">
                     <button
                       onClick={() => onSelectProcess?.(rp)}
                       className={`flex gap-2 items-baseline w-full text-left hover:opacity-80 transition-opacity ${onSelectProcess ? 'cursor-pointer' : 'cursor-default'}`}
                     >
                       <span className={`font-mono text-xs font-bold shrink-0 ${rpGroup.textColor}`}>{rp.id}</span>
-                      <span className="text-sm text-gray-200 leading-snug">{t(rp.name, lang)}</span>
+                      <span className="text-sm text-content leading-snug">{t(rp.name, lang)}</span>
                     </button>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {sharedItems.map((itemId) => (
-                        <span key={itemId} className="text-xs bg-gray-800 text-green-500 px-1.5 py-0.5 rounded font-mono">
+                        <span key={itemId} className="text-xs bg-surface-2 text-green-500 px-1.5 py-0.5 rounded font-mono">
                           {itemId}
                         </span>
                       ))}

@@ -18,10 +18,10 @@ export function ProcessCard({ process, groupMeta, isSelected, isHighlighted, lan
       onClick={() => onClick(process)}
       className={`
         w-full text-left px-3 py-2 rounded-lg border transition-all duration-150
-        ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950' : ''}
+        ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-bg' : ''}
         ${isSelected
-          ? `${groupMeta.color} ${groupMeta.borderColor} ${groupMeta.textColor} ring-2 ring-offset-1 ring-offset-gray-950 ring-white/30`
-          : `bg-gray-900 border-gray-700 hover:${groupMeta.color} hover:${groupMeta.borderColor} text-gray-300 hover:${groupMeta.textColor}`
+          ? `${groupMeta.color} ${groupMeta.borderColor} ${groupMeta.textColor} ring-2 ring-offset-1 ring-offset-bg ring-white/30`
+          : `bg-surface border-line hover:${groupMeta.color} hover:${groupMeta.borderColor} text-content-2 hover:${groupMeta.textColor}`
         }
       `}
     >

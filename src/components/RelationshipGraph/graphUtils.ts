@@ -5,38 +5,9 @@ import { t } from '../../store/languageStore'
 import type { EdgeType } from '../common/EdgeTypeFilterBar'
 import { INFORMATION_ITEMS, PROCESS_GROUPS } from '../../data'
 import dagre from '@dagrejs/dagre'
+import { groupColorHex, cssVar } from '../../utils/themeColors'
 
 export type GraphLevel = 'process' | 'bp' | 'item'
-
-const GROUP_COLOR: Record<string, string> = {
-  SYS: '#1e3a5f',
-  SWE: '#2d1b69',
-  HWE: '#0e4f5c',
-  VAL: '#1a3a1a',
-  MLE: '#2d1b5a',
-  MAN: '#4a3500',
-  SUP: '#0f3d1f',
-  PIM: '#3d3a00',
-  ACQ: '#4a2000',
-  SPL: '#4a1020',
-  REU: '#0f3d3d',
-  SEC: '#4a1010',
-}
-
-const GROUP_BORDER: Record<string, string> = {
-  SYS: '#2563eb',
-  SWE: '#7c3aed',
-  HWE: '#0891b2',
-  VAL: '#65a30d',
-  MLE: '#7e22ce',
-  MAN: '#d97706',
-  SUP: '#16a34a',
-  PIM: '#ca8a04',
-  ACQ: '#ea580c',
-  SPL: '#e11d48',
-  REU: '#0d9488',
-  SEC: '#dc2626',
-}
 
 const NODE_SIZE: Record<string, { width: number; height: number }> = {
   processNode: { width: 175, height: 65 },
@@ -59,7 +30,10 @@ const LINE_H  = 15
 const LABEL_GAP = 2
 
 function processNodeColor(group: string) {
-  return { bg: GROUP_COLOR[group] ?? '#1f2937', border: GROUP_BORDER[group] ?? '#4b5563' }
+  return {
+    bg: groupColorHex(group as ProcessGroup, 'surface'),
+    border: groupColorHex(group as ProcessGroup, 'line'),
+  }
 }
 
 function firstSentence(text: string): string {
@@ -389,7 +363,7 @@ export function buildDetailLevelGraph(
           style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
           label: lang === 'en' ? 'supports' : '達成',
           labelStyle: { fill: '#818cf8', fontSize: 10 },
-          labelBgStyle: { fill: '#0f172a' },
+          labelBgStyle: { fill: cssVar('--color-bg') },
         })
       })
     })
@@ -441,7 +415,7 @@ export function buildDetailLevelGraph(
           style: { stroke: '#22c55e', strokeWidth: 1.5 },
           label: lang === 'en' ? 'produces' : '生成',
           labelStyle: { fill: '#4ade80', fontSize: 10 },
-          labelBgStyle: { fill: '#0f172a' },
+          labelBgStyle: { fill: cssVar('--color-bg') },
         })
       })
     })

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-// nodes/edges are fully controlled via useMemo — no useNodesState/useEdgesState needed
 import ReactFlow, {
   Background,
   Controls,
@@ -29,6 +28,8 @@ import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
 import { INFORMATION_ITEMS } from '../../data'
 import type { NavigateTarget } from '../../utils/searchUtils'
+import { useTheme } from '../../store/themeStore'
+import { cssVar } from '../../utils/themeColors'
 
 const nodeTypes = {
   groupNode: GroupNode,
@@ -56,6 +57,7 @@ interface Props {
 }
 
 export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initialLevel, initialFocusId, onGraphStateChange }: Props) {
+  const [theme] = useTheme()
   const [level, setLevel] = useState<GraphLevel>(initialLevel ?? 'process')
   const [focusProcess, setFocusProcess] = useState<Process | null>(() => {
     if (initialLevel === 'bp' && initialFocusId) {
@@ -92,7 +94,8 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
       return buildItemLevelGraph(ALL_PROCESSES, lang)
     }
     return { nodes: [], edges: [] }
-  }, [level, focusProcess, focusItemId, lang, activeGroups, activeEdgeTypes])
+  // theme を依存に追加してテーマ変更時にノード色を再計算
+  }, [level, focusProcess, focusItemId, lang, activeGroups, activeEdgeTypes, theme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { nodes, edges } = useMemo(() => {
     if (!hoveredNodeId) return { nodes: initNodes, edges: initEdges }
@@ -153,7 +156,6 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         setSelectedBPNode(null)
       }
     } else if (level === 'item' && !focusItemId) {
-      // 情報項目一覧で情報項目ノードをクリック → 起点グラフへ
       const itemId = node.id.replace(/^item-/, '')
       setFocusItemId(itemId)
     }
@@ -202,7 +204,6 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
     setFocusItemId(null)
   }
 
-  // level/focus 変更を URL に反映
   useEffect(() => {
     if (isFirstGraphRender.current) {
       isFirstGraphRender.current = false
@@ -215,7 +216,6 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
     onGraphStateChange?.(level, focusId)
   }, [level, focusProcess, focusItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // グローバル検索からのナビゲーション処理
   useEffect(() => {
     if (!navigateTo) return
     if (navigateTo.type === 'bp') {
@@ -224,7 +224,6 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         setFocusProcess(p)
         setLevel('bp')
         setSelectedBPNode(null)
-        // BP詳細パネルを開く
         const bp = p.base_practices.find((b) => b.id === navigateTo.bpId)
         if (bp) setSelectedBPNode({ type: 'bp', bp, process: p })
       }
@@ -238,6 +237,10 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
   const groupMeta = focusProcess ? PROCESS_GROUPS.find((g) => g.id === focusProcess.group) : null
   const focusItem = focusItemId ? INFORMATION_ITEMS.find((i) => i.id === focusItemId) : null
 
+  const bgColor = cssVar('--color-bg')
+  const surfaceColor = cssVar('--color-surface')
+  const lineColor = cssVar('--color-line')
+
   return (
     <div className="flex flex-col h-full">
       {/* Group filter (process level only) */}
@@ -246,33 +249,33 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-5 py-2.5 bg-gray-900 border-b border-gray-800 shrink-0 flex-wrap">
+      <div className="flex items-center gap-3 px-5 py-2.5 bg-surface border-b border-line-subtle shrink-0 flex-wrap">
         {/* Level tabs */}
-        <div className="flex rounded-lg overflow-hidden border border-gray-700 shrink-0">
+        <div className="flex rounded-lg overflow-hidden border border-line shrink-0">
           <button
             onClick={handleBackToProcess}
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-              level === 'process' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              level === 'process' ? 'bg-surface-2 text-content' : 'text-content-2 hover:text-content hover:bg-surface-2'
             }`}
           >
             {lang === 'en' ? 'Process Level' : 'プロセスレベル'}
           </button>
           <button
             onClick={() => { if (focusProcess) setLevel('bp') }}
-            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-700 ${
+            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-line ${
               level === 'bp'
-                ? 'bg-gray-700 text-white'
+                ? 'bg-surface-2 text-content'
                 : focusProcess
-                ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                : 'text-gray-600 cursor-not-allowed'
+                ? 'text-content-2 hover:text-content hover:bg-surface-2'
+                : 'text-content-muted cursor-not-allowed'
             }`}
           >
             {lang === 'en' ? 'BP / Item Level' : 'BP / 情報項目レベル'}
           </button>
           <button
             onClick={() => { setLevel('item'); setFocusItemId(null) }}
-            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-700 ${
-              level === 'item' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-line ${
+              level === 'item' ? 'bg-surface-2 text-content' : 'text-content-2 hover:text-content hover:bg-surface-2'
             }`}
           >
             {lang === 'en' ? 'Item Origin' : '情報項目起点'}
@@ -285,12 +288,12 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         {/* Focus process badge (BP level) */}
         {level === 'bp' && focusProcess && groupMeta && (
           <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xs">→</span>
+            <span className="text-content-muted text-xs">→</span>
             <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{focusProcess.id}</span>
-            <span className="text-xs text-gray-300">{t(focusProcess.name, lang)}</span>
+            <span className="text-xs text-content">{t(focusProcess.name, lang)}</span>
             <button
               onClick={handleBackToProcess}
-              className="ml-1 text-xs text-gray-500 hover:text-gray-200 underline"
+              className="ml-1 text-xs text-content-muted hover:text-content underline"
             >
               {lang === 'en' ? 'Back' : '戻る'}
             </button>
@@ -300,14 +303,14 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         {/* Focus item badge (item origin level) */}
         {level === 'item' && focusItemId && (
           <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-xs">→</span>
+            <span className="text-content-muted text-xs">→</span>
             <span className="font-mono text-xs font-bold text-emerald-400">{focusItemId}</span>
-            <span className="text-xs text-gray-300">
+            <span className="text-xs text-content">
               {focusItem ? t(focusItem.name, lang) : focusItemId}
             </span>
             <button
               onClick={handleBackToItemList}
-              className="ml-1 text-xs text-gray-500 hover:text-gray-200 underline"
+              className="ml-1 text-xs text-content-muted hover:text-content underline"
             >
               {lang === 'en' ? 'Back' : '戻る'}
             </button>
@@ -327,22 +330,22 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
 
         {/* Hint text */}
         {level === 'process' && (
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-content-muted">
             {lang === 'en' ? 'Hover to preview · Click to drill down' : 'ホバーでプレビュー・クリックで展開'}
           </span>
         )}
         {level === 'item' && !focusItemId && (
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-content-muted">
             {lang === 'en' ? 'Click an item to see its sources' : '情報項目をクリックして生成元を表示'}
           </span>
         )}
         {level === 'bp' && (
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-content-muted">
             {lang === 'en' ? 'Click a node to view details' : 'ノードをクリックして詳細を表示'}
           </span>
         )}
         {level === 'item' && focusItemId && (
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-content-muted">
             {lang === 'en' ? 'Hover to highlight connections' : 'ホバーで接続を強調表示'}
           </span>
         )}
@@ -363,14 +366,14 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
             minZoom={0.1}
             maxZoom={2}
           >
-            <Background color="#1f2937" gap={20} />
+            <Background color={lineColor} gap={20} />
             <Controls />
             <MiniMap
               nodeColor={(n) => {
                 const d = n.data as { bg?: string; color?: string }
-                return d.bg ?? d.color ?? '#374151'
+                return d.bg ?? d.color ?? surfaceColor
               }}
-              style={{ background: '#111827' }}
+              style={{ background: bgColor }}
             />
           </ReactFlow>
         </div>

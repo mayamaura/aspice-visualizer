@@ -23,7 +23,6 @@ export function MatrixView({ lang, onNavigate }: Props) {
   )
   const [popup, setPopup] = useState<PopupState | null>(null)
 
-  // マウスドラッグによるスクロール
   const scrollRef = useRef<HTMLDivElement>(null)
   const dragState = useRef({
     active: false,
@@ -36,7 +35,6 @@ export function MatrixView({ lang, onNavigate }: Props) {
   const [isDragging, setIsDragging] = useState(false)
 
   const handleDragMouseDown = (e: React.MouseEvent) => {
-    // 左ボタンのみ
     if (e.button !== 0 || !scrollRef.current) return
     const el = scrollRef.current
     dragState.current = {
@@ -66,7 +64,6 @@ export function MatrixView({ lang, onNavigate }: Props) {
     setIsDragging(false)
   }
 
-  // ドラッグでスクロールした直後のクリック（セル選択・列遷移）を抑制
   const handleDragClickCapture = (e: React.MouseEvent) => {
     if (dragState.current.moved) {
       dragState.current.moved = false
@@ -75,21 +72,18 @@ export function MatrixView({ lang, onNavigate }: Props) {
     }
   }
 
-  // 全情報項目ID（昇順・重複排除）
   const allItemIds = useMemo(
     () =>
       [...new Set(ALL_PROCESSES.flatMap((p) => p.output_information_items.map((o) => o.id)))].sort(),
     []
   )
 
-  // 情報項目IDマップ
   const itemMap = useMemo(() => {
     const m: Record<string, InformationItem> = {}
     for (const item of INFORMATION_ITEMS) m[item.id] = item
     return m
   }, [])
 
-  // 列グループ（情報項目IDの上部分でグループ化）
   const columnGroups = useMemo(() => {
     const groups: { prefix: string; count: number }[] = []
     for (const id of allItemIds) {
@@ -103,7 +97,6 @@ export function MatrixView({ lang, onNavigate }: Props) {
     return groups
   }, [allItemIds])
 
-  // フィルター適用後のグループ別プロセス一覧
   const filteredGroupedProcesses = useMemo(
     () =>
       PROCESS_GROUPS.filter((g) => selectedGroups.has(g.id))
@@ -115,7 +108,6 @@ export function MatrixView({ lang, onNavigate }: Props) {
     [selectedGroups]
   )
 
-  // プロセスごとの出力情報項目IDセット（パフォーマンス最適化）
   const outputSets = useMemo(() => {
     const map: Record<string, Set<string>> = {}
     for (const p of ALL_PROCESSES as Process[]) {
@@ -133,7 +125,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-950">
+    <div className="flex flex-col h-full bg-bg">
       <GroupFilterBar selected={selectedGroups} lang={lang} onChange={setSelectedGroups} />
 
       <div
@@ -150,7 +142,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
             {/* 列グループ見出し行 */}
             <tr>
               <th
-                className="sticky left-0 top-0 z-30 bg-gray-900 border border-gray-700 px-3 py-1.5 text-left text-gray-400 font-semibold whitespace-nowrap"
+                className="sticky left-0 top-0 z-30 bg-surface border border-line px-3 py-1.5 text-left text-content-2 font-semibold whitespace-nowrap"
                 style={{ minWidth: '200px' }}
                 rowSpan={2}
               >
@@ -160,7 +152,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 <th
                   key={cg.prefix}
                   colSpan={cg.count}
-                  className="sticky top-0 z-20 bg-gray-800 border border-gray-700 px-1 py-1 text-center text-gray-400 font-mono font-bold"
+                  className="sticky top-0 z-20 bg-surface-2 border border-line px-1 py-1 text-center text-content-2 font-mono font-bold"
                 >
                   {cg.prefix}
                 </th>
@@ -174,13 +166,13 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 return (
                   <th
                     key={id}
-                    className="sticky top-6 z-20 bg-gray-900 border border-gray-700 text-center cursor-pointer hover:bg-blue-900 hover:text-blue-300 transition-colors"
+                    className="sticky top-6 z-20 bg-surface border border-line text-center cursor-pointer hover:bg-grp-sys-surface hover:text-grp-sys-text transition-colors"
                     style={{ minWidth: '24px', width: '24px' }}
                     title={item ? t(item.name, lang) : id}
                     onClick={() => handleColumnHeaderClick(id)}
                   >
                     <div
-                      className="font-mono text-gray-400 hover:text-blue-300"
+                      className="font-mono text-content-2"
                       style={{
                         writingMode: 'vertical-rl',
                         textOrientation: 'mixed',
@@ -204,7 +196,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 <tr key={`group-${group.id}`}>
                   <td
                     colSpan={allItemIds.length + 1}
-                    className={`px-3 py-1.5 font-bold text-xs ${group.color} ${group.textColor} border border-gray-700`}
+                    className={`px-3 py-1.5 font-bold text-xs ${group.color} ${group.textColor} border border-line`}
                   >
                     {group.id} — {t(group.name, lang)}
                   </td>
@@ -212,14 +204,14 @@ export function MatrixView({ lang, onNavigate }: Props) {
 
                 {/* プロセス行 */}
                 {processes.map((process) => (
-                  <tr key={process.id} className="hover:bg-gray-900/50 transition-colors">
+                  <tr key={process.id} className="hover:bg-surface/50 transition-colors">
                     {/* 行ヘッダー（プロセスID＋名称） */}
                     <td
-                      className={`sticky left-0 z-10 border border-gray-800 px-3 py-1.5 whitespace-nowrap ${group.color} bg-opacity-50`}
+                      className={`sticky left-0 z-10 border border-line-subtle px-3 py-1.5 whitespace-nowrap ${group.color} bg-opacity-50`}
                       style={{ minWidth: '200px' }}
                     >
                       <span className={`font-mono font-bold mr-2 ${group.textColor}`}>{process.id}</span>
-                      <span className="text-gray-300">{t(process.name, lang)}</span>
+                      <span className="text-content">{t(process.name, lang)}</span>
                     </td>
 
                     {/* データセル */}
@@ -227,7 +219,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
                       const item = itemMap[id]
                       const filled = outputSets[process.id]?.has(id) ?? false
                       if (!item) {
-                        return <td key={id} className="border border-gray-800 w-6 h-6" />
+                        return <td key={id} className="border border-line-subtle w-6 h-6" />
                       }
                       return (
                         <MatrixCell

@@ -9,12 +9,12 @@ interface Props {
 
 export function MatrixCell({ process, item, filled, onClick }: Props) {
   if (!filled) {
-    return <td className="border border-gray-800 w-6 h-6" />
+    return <td className="border border-line-subtle w-6 h-6" />
   }
 
   return (
     <td
-      className="border border-gray-800 w-6 h-6 cursor-pointer"
+      className="border border-line-subtle w-6 h-6 cursor-pointer"
       title={`${process.id} → ${item.id}`}
       onClick={() => onClick(process, item)}
     >

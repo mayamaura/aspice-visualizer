@@ -59,7 +59,7 @@ export function ProcessNode({ data }: { data: ProcessNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color: data.border }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-200 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       {showHandles && <Handle type="source" position={Position.Right} style={{ background: data.border }} />}
     </div>
   )
@@ -98,7 +98,7 @@ export function BPNode({ data }: { data: BPNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color: data.border }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-200 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       <Handle type="source" position={Position.Right} style={{ background: data.border }} />
     </div>
   )
@@ -122,7 +122,7 @@ export function ItemNode({ data }: { data: ItemNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-300 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       <Handle type="source" position={Position.Right} style={{ background: color }} />
     </div>
   )

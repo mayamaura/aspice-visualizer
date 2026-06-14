@@ -17,7 +17,7 @@ interface Props {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+    <div className="text-xs font-semibold text-content-muted uppercase tracking-wide mb-2">
       {children}
     </div>
   )
@@ -29,18 +29,18 @@ function CharacteristicList({ characteristics, lang }: { characteristics: Charac
       {characteristics.map((c, i) => {
         const text = lang === 'ja' && c.ja ? c.ja : c.en
         if (c.type === 'category') {
-          return <div key={i} className="text-xs font-semibold text-gray-300 mt-2 first:mt-0">{text}</div>
+          return <div key={i} className="text-xs font-semibold text-content mt-2 first:mt-0">{text}</div>
         }
         if (c.type === 'note') {
-          return <div key={i} className="text-xs text-gray-500 italic leading-relaxed">{text}</div>
+          return <div key={i} className="text-xs text-content-muted italic leading-relaxed">{text}</div>
         }
         const lines = text.split('\n')
         return (
-          <div key={i} className="text-xs text-gray-400">
-            <span className="text-gray-600 mr-1">•</span>
+          <div key={i} className="text-xs text-content-2">
+            <span className="text-content-muted mr-1">•</span>
             {lines[0]}
             {lines.slice(1).map((sub, j) => (
-              <div key={j} className="ml-3 text-gray-500">{sub}</div>
+              <div key={j} className="ml-3 text-content-muted">{sub}</div>
             ))}
           </div>
         )
@@ -56,16 +56,16 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
       <div className={`px-5 py-4 border-b flex items-start justify-between gap-3 ${groupMeta.color}`} style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
         <div className="min-w-0">
           <div className={`font-mono text-sm font-bold mb-1 ${groupMeta.textColor}`}>{bp.id}</div>
-          <div className="text-base font-semibold text-gray-100 leading-snug">{t(bp.name, lang)}</div>
+          <div className="text-base font-semibold text-content leading-snug">{t(bp.name, lang)}</div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <div>
           <SectionLabel>{lang === 'en' ? 'Description' : '説明'}</SectionLabel>
-          <p className="text-sm text-gray-300 leading-relaxed">{t(bp.description, lang)}</p>
+          <p className="text-sm text-content leading-relaxed">{t(bp.description, lang)}</p>
         </div>
 
         <div>
@@ -78,7 +78,7 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
                   <span className={`font-mono text-xs shrink-0 mt-0.5 ${groupMeta.textColor} opacity-80`}>
                     {process.id}.{refId}
                   </span>
-                  <span className="text-gray-400 leading-relaxed text-xs">
+                  <span className="text-content-2 leading-relaxed text-xs">
                     {oc ? t(oc.text, lang) : String(refId)}
                   </span>
                 </div>
@@ -92,7 +92,7 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
             <SectionLabel>{lang === 'en' ? 'Notes' : 'ノート'}</SectionLabel>
             <div className="space-y-2">
               {bp.notes.map((note) => (
-                <p key={note.id} className="text-xs text-gray-500 italic leading-relaxed">
+                <p key={note.id} className="text-xs text-content-muted italic leading-relaxed">
                   {t(note.text, lang)}
                 </p>
               ))}
@@ -120,7 +120,7 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
             {t(outcome.text, lang)}
           </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
@@ -130,16 +130,16 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
           {relatedBPs.length > 0 ? (
             <div className="space-y-2">
               {relatedBPs.map((bp) => (
-                <div key={bp.id} className="bg-gray-900 rounded-lg p-3">
+                <div key={bp.id} className="bg-surface rounded-lg p-3">
                   <div className="flex gap-2 items-baseline mb-1">
                     <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{bp.id}</span>
-                    <span className="text-xs text-gray-300">{t(bp.name, lang)}</span>
+                    <span className="text-xs text-content">{t(bp.name, lang)}</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-500 italic">{lang === 'en' ? 'None' : 'なし'}</p>
+            <p className="text-xs text-content-muted italic">{lang === 'en' ? 'None' : 'なし'}</p>
           )}
         </div>
 
@@ -152,13 +152,13 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
                 return (
                   <div key={poi.id} className="flex gap-2 items-baseline">
                     <span className="font-mono text-xs text-emerald-400 font-bold">{poi.id}</span>
-                    <span className="text-xs text-gray-400">{item ? t(item.name, lang) : poi.id}</span>
+                    <span className="text-xs text-content-2">{item ? t(item.name, lang) : poi.id}</span>
                   </div>
                 )
               })}
             </div>
           ) : (
-            <p className="text-xs text-gray-500 italic">{lang === 'en' ? 'None' : 'なし'}</p>
+            <p className="text-xs text-content-muted italic">{lang === 'en' ? 'None' : 'なし'}</p>
           )}
         </div>
       </div>
@@ -175,7 +175,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
           <div className="font-mono text-sm font-bold text-emerald-400 mb-1">{item.id}</div>
           <div className="text-base font-semibold text-emerald-100 leading-snug">{t(item.name, lang)}</div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
@@ -183,7 +183,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
         {item.description && (
           <div>
             <SectionLabel>{lang === 'en' ? 'Description' : '説明'}</SectionLabel>
-            <p className="text-sm text-gray-300 leading-relaxed">{t(item.description, lang)}</p>
+            <p className="text-sm text-content leading-relaxed">{t(item.description, lang)}</p>
           </div>
         )}
 
@@ -195,7 +195,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
         )}
 
         {item.characteristics.length === 0 && !item.description && (
-          <p className="text-sm text-gray-500 italic">
+          <p className="text-sm text-content-muted italic">
             {lang === 'en' ? 'No details available.' : '詳細情報はありません。'}
           </p>
         )}
@@ -206,7 +206,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
 
 export function BPLevelDetailPanel({ selected, groupMeta, lang, onClose }: Props) {
   return (
-    <div className="flex flex-col w-80 shrink-0 bg-gray-950 border-l border-gray-800 overflow-hidden">
+    <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden">
       {selected.type === 'bp' && (
         <BPContent bp={selected.bp} process={selected.process} groupMeta={groupMeta} lang={lang} onClose={onClose} />
       )}

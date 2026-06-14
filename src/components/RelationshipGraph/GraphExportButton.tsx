@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image'
 import type { RefObject } from 'react'
 import type { Language } from '../../types/aspice'
+import { cssVar } from '../../utils/themeColors'
 
 interface Props {
   containerRef: RefObject<HTMLDivElement | null>
@@ -12,7 +13,7 @@ export function GraphExportButton({ containerRef, lang }: Props) {
     if (!containerRef.current) return
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const dataUrl = await toPng(containerRef.current, { backgroundColor: '#111827' })
+      const dataUrl = await toPng(containerRef.current, { backgroundColor: cssVar('--color-bg') })
       const a = document.createElement('a')
       a.href = dataUrl
       a.download = `aspice-graph-${timestamp}.png`
@@ -26,7 +27,7 @@ export function GraphExportButton({ containerRef, lang }: Props) {
     <button
       onClick={handleExport}
       title={lang === 'en' ? 'Export graph as PNG' : 'グラフをPNGで保存'}
-      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 transition-colors bg-gray-800 shrink-0"
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-line text-content-2 hover:text-content hover:border-line-subtle transition-colors bg-surface-2 shrink-0"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
