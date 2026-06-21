@@ -9,6 +9,7 @@ import { FlowDetailPanel } from './FlowDetailPanel'
 import type { FlowSelection } from './FlowDetailPanel'
 import type { LayoutLink } from './sankeyLayout'
 import { groupColorHex } from '../../utils/themeColors'
+import { useTheme } from '../../store/themeStore'
 
 interface Props {
   lang: Language
@@ -31,6 +32,7 @@ export function ArtifactFlowView({
     () => (initialFlowGroup as ProcessGroup | null) ?? null,
   )
   const [selection, setSelection] = useState<FlowSelection | null>(null)
+  const [theme] = useTheme()
 
   useEffect(() => {
     if (!navigateTo) return
@@ -123,7 +125,8 @@ export function ArtifactFlowView({
       return buildGroupSankeyData(ALL_PROCESSES, lang)
     }
     return buildProcessSankeyData(ALL_PROCESSES, selectedGroup, lang)
-  }, [selectedGroup, lang])
+  // theme を依存に追加してテーマ変更時にノード色を再計算
+  }, [selectedGroup, lang, theme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupMeta = selectedGroup
     ? PROCESS_GROUPS.find((g) => g.id === selectedGroup)
@@ -158,11 +161,14 @@ export function ArtifactFlowView({
               <span className="text-content-muted">|</span>
               <span
                 className="text-xs font-semibold px-2 py-0.5 rounded"
-                style={{ background: selectedGroup ? groupColorHex(selectedGroup, 'surface') : undefined }}
+                style={{
+                  background: selectedGroup ? groupColorHex(selectedGroup, 'surface') : undefined,
+                  color: selectedGroup ? groupColorHex(selectedGroup, 'text') : undefined,
+                }}
               >
-                <span className="text-white">{selectedGroup}</span>
+                <span>{selectedGroup}</span>
                 {groupMeta && (
-                  <span className="text-white/70 ml-1">
+                  <span className="ml-1 opacity-80">
                     {lang === 'en' ? groupMeta.name.en : groupMeta.name.ja}
                   </span>
                 )}

@@ -9,8 +9,8 @@ interface Props {
 }
 
 const EDGE_TYPES: { id: EdgeType; labelEn: string; labelJa: string; color: string; border: string }[] = [
-  { id: 'supports', labelEn: 'supports outcome', labelJa: 'プロセス成果を達成', color: 'bg-indigo-950', border: 'border-indigo-500' },
-  { id: 'produces', labelEn: 'produces item',    labelJa: '情報項目を生成',     color: 'bg-green-950',  border: 'border-green-500' },
+  { id: 'supports', labelEn: 'supports outcome', labelJa: 'プロセス成果を達成', color: 'bg-outcome-bg', border: 'border-outcome' },
+  { id: 'produces', labelEn: 'produces item',    labelJa: '情報項目を生成',     color: 'bg-item-bg',    border: 'border-item' },
 ]
 
 export function EdgeTypeFilterBar({ selected, lang, onChange }: Props) {

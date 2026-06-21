@@ -1,5 +1,6 @@
 import type { Language, Process, ProcessGroup } from '../../types/aspice'
 import { INFORMATION_ITEMS, PROCESS_GROUPS } from '../../data'
+import { cssVar } from '../../utils/themeColors'
 
 export interface SankeyNode {
   id: string
@@ -74,7 +75,7 @@ export function buildGroupSankeyData(
     id: `prefix-${prefix}`,
     label: prefixLabel(prefix, lang),
     value: prefixTotals.get(prefix) ?? 0,
-    color: '#374151',
+    color: cssVar('--color-content-muted'),
     side: 'right',
   }))
 
@@ -128,7 +129,7 @@ export function buildProcessSankeyData(
           : `${id} ${item.name.ja}`
         : id,
       value: groupProcs.filter((p) => p.output_information_items.some((oi) => oi.id === id)).length,
-      color: '#1e3a2a',
+      color: cssVar('--color-item'),
       side: 'right',
     }
   })

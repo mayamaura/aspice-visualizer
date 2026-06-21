@@ -6,6 +6,7 @@ import { GroupFilterBar } from '../common/GroupFilterBar'
 import { MatrixCell } from './MatrixCell'
 import { CellDetailPopup } from './CellDetailPopup'
 import type { NavigateTarget } from '../../utils/searchUtils'
+import { groupColorHex } from '../../utils/themeColors'
 
 interface Props {
   lang: Language
@@ -166,7 +167,7 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 return (
                   <th
                     key={id}
-                    className="sticky top-6 z-20 bg-surface border border-line text-center cursor-pointer hover:bg-blue-900 hover:text-blue-300 transition-colors"
+                    className="sticky top-6 z-20 bg-surface border border-line text-center cursor-pointer hover:bg-accent-bg hover:text-accent transition-colors"
                     style={{ minWidth: '24px', width: '24px' }}
                     title={item ? t(item.name, lang) : id}
                     onClick={() => handleColumnHeaderClick(id)}
@@ -196,7 +197,8 @@ export function MatrixView({ lang, onNavigate }: Props) {
                 <tr key={`group-${group.id}`}>
                   <td
                     colSpan={allItemIds.length + 1}
-                    className={`px-3 py-1.5 font-bold text-xs ${group.color} ${group.textColor} border border-line`}
+                    className="px-3 py-1.5 font-bold text-xs border border-line"
+                    style={{ background: groupColorHex(group.id, 'surface'), color: groupColorHex(group.id, 'text') }}
                   >
                     {group.id} — {t(group.name, lang)}
                   </td>
@@ -207,10 +209,10 @@ export function MatrixView({ lang, onNavigate }: Props) {
                   <tr key={process.id} className="hover:bg-surface/50 transition-colors">
                     {/* 行ヘッダー（プロセスID＋名称） */}
                     <td
-                      className={`sticky left-0 z-10 border border-line-subtle px-3 py-1.5 whitespace-nowrap ${group.color} bg-opacity-50`}
-                      style={{ minWidth: '200px' }}
+                      className="sticky left-0 z-10 border border-line-subtle px-3 py-1.5 whitespace-nowrap"
+                      style={{ minWidth: '200px', background: groupColorHex(group.id, 'surface') }}
                     >
-                      <span className={`font-mono font-bold mr-2 ${group.textColor}`}>{process.id}</span>
+                      <span className="font-mono font-bold mr-2" style={{ color: groupColorHex(group.id, 'text') }}>{process.id}</span>
                       <span className="text-content">{t(process.name, lang)}</span>
                     </td>
 

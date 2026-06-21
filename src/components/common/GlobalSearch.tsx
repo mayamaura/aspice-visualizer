@@ -10,9 +10,9 @@ const CATEGORY_LABEL: Record<SearchResultType, { en: string; ja: string }> = {
 }
 
 const CATEGORY_COLOR: Record<SearchResultType, string> = {
-  process: 'text-blue-400',
-  bp: 'text-violet-400',
-  item: 'text-emerald-400',
+  process: 'text-accent',
+  bp: 'text-bp',
+  item: 'text-item',
 }
 
 interface Props {

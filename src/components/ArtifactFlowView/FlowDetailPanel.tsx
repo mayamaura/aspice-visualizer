@@ -55,7 +55,7 @@ export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props)
               onClick={() => onNavigate({ type: 'item', itemId: id })}
               className="w-full text-left flex items-start gap-2 px-3 py-2 rounded-md bg-surface-2 hover:bg-line transition-colors group"
             >
-              <span className="text-emerald-400 font-mono text-xs shrink-0 mt-0.5">{id}</span>
+              <span className="text-item font-mono text-xs shrink-0 mt-0.5">{id}</span>
               <span className="text-content-2 text-xs leading-snug group-hover:text-content">
                 {name}
               </span>

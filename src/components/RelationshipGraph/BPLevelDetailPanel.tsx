@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import type { BasePractice, Characteristic, InformationItem, Language, Outcome, Process, ProcessGroup_Meta } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { INFORMATION_ITEMS } from '../../data'
+import { groupColorHex } from '../../utils/themeColors'
 
 export type SelectedBPNode =
   | { type: 'bp'; bp: BasePractice; process: Process }
@@ -53,9 +54,12 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
   return (
     <>
       {/* Header */}
-      <div className={`px-5 py-4 border-b flex items-start justify-between gap-3 ${groupMeta.color}`} style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+      <div
+        className="px-5 py-4 border-b border-line-subtle flex items-start justify-between gap-3"
+        style={{ background: groupColorHex(groupMeta.id, 'surface') }}
+      >
         <div className="min-w-0">
-          <div className={`font-mono text-sm font-bold mb-1 ${groupMeta.textColor}`}>{bp.id}</div>
+          <div className="font-mono text-sm font-bold mb-1" style={{ color: groupColorHex(groupMeta.id, 'text') }}>{bp.id}</div>
           <div className="text-base font-semibold text-content leading-snug">{t(bp.name, lang)}</div>
         </div>
         <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
@@ -75,7 +79,7 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
               const oc = process.outcomes.find((o) => o.id === refId)
               return (
                 <div key={refId} className="flex gap-2 text-sm">
-                  <span className={`font-mono text-xs shrink-0 mt-0.5 ${groupMeta.textColor} opacity-80`}>
+                  <span className="font-mono text-xs shrink-0 mt-0.5 opacity-80" style={{ color: groupColorHex(groupMeta.id, 'text') }}>
                     {process.id}.{refId}
                   </span>
                   <span className="text-content-2 leading-relaxed text-xs">
@@ -111,12 +115,12 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
   return (
     <>
       {/* Header */}
-      <div className="px-5 py-4 bg-indigo-950 border-b border-indigo-900 flex items-start justify-between gap-3">
+      <div className="px-5 py-4 bg-outcome-bg border-b border-line-subtle flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-sm font-bold text-indigo-400 mb-1">
+          <div className="font-mono text-sm font-bold text-outcome mb-1">
             {process.id}.{outcome.id}
           </div>
-          <div className="text-base font-semibold text-indigo-100 leading-snug">
+          <div className="text-base font-semibold text-content leading-snug">
             {t(outcome.text, lang)}
           </div>
         </div>
@@ -132,7 +136,7 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
               {relatedBPs.map((bp) => (
                 <div key={bp.id} className="bg-surface rounded-lg p-3">
                   <div className="flex gap-2 items-baseline mb-1">
-                    <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{bp.id}</span>
+                    <span className="font-mono text-xs font-bold" style={{ color: groupColorHex(groupMeta.id, 'text') }}>{bp.id}</span>
                     <span className="text-xs text-content">{t(bp.name, lang)}</span>
                   </div>
                 </div>
@@ -151,7 +155,7 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
                 const item = INFORMATION_ITEMS.find((i) => i.id === poi.id)
                 return (
                   <div key={poi.id} className="flex gap-2 items-baseline">
-                    <span className="font-mono text-xs text-emerald-400 font-bold">{poi.id}</span>
+                    <span className="font-mono text-xs text-item font-bold">{poi.id}</span>
                     <span className="text-xs text-content-2">{item ? t(item.name, lang) : poi.id}</span>
                   </div>
                 )
@@ -170,10 +174,10 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
   return (
     <>
       {/* Header */}
-      <div className="px-5 py-4 bg-emerald-950 border-b border-emerald-900 flex items-start justify-between gap-3">
+      <div className="px-5 py-4 bg-item-bg border-b border-line-subtle flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-sm font-bold text-emerald-400 mb-1">{item.id}</div>
-          <div className="text-base font-semibold text-emerald-100 leading-snug">{t(item.name, lang)}</div>
+          <div className="font-mono text-sm font-bold text-item mb-1">{item.id}</div>
+          <div className="text-base font-semibold text-content leading-snug">{t(item.name, lang)}</div>
         </div>
         <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>

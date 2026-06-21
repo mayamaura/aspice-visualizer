@@ -362,7 +362,7 @@ export function buildDetailLevelGraph(
           type: 'default',
           style: { stroke: '#6366f1', strokeWidth: 1.5, strokeDasharray: '4 3' },
           label: lang === 'en' ? 'supports' : '達成',
-          labelStyle: { fill: '#818cf8', fontSize: 10 },
+          labelStyle: { fill: cssVar('--color-outcome'), fontSize: 10 },
           labelBgStyle: { fill: cssVar('--color-bg') },
         })
       })
@@ -414,7 +414,7 @@ export function buildDetailLevelGraph(
           type: 'default',
           style: { stroke: '#22c55e', strokeWidth: 1.5 },
           label: lang === 'en' ? 'produces' : '生成',
-          labelStyle: { fill: '#4ade80', fontSize: 10 },
+          labelStyle: { fill: cssVar('--color-item'), fontSize: 10 },
           labelBgStyle: { fill: cssVar('--color-bg') },
         })
       })
@@ -591,8 +591,8 @@ export function buildItemFocusGraph(
         type: 'default',
         style: { stroke: '#22c55e', strokeWidth: 1.5 },
         label: lang === 'en' ? 'produces' : '生成',
-        labelStyle: { fill: '#4ade80', fontSize: 10 },
-        labelBgStyle: { fill: '#0f172a' },
+        labelStyle: { fill: cssVar('--color-item'), fontSize: 10 },
+        labelBgStyle: { fill: cssVar('--color-bg') },
       })
     })
   })

@@ -4,6 +4,7 @@ import type { Process, ProcessGroup_Meta, Characteristic } from '../../types/asp
 import type { Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { INFORMATION_ITEMS, ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
+import { groupColorHex } from '../../utils/themeColors'
 
 interface Props {
   process: Process
@@ -80,13 +81,18 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
       }))
   }, [process])
 
+  const groupText = groupColorHex(groupMeta.id, 'text')
+
   return (
     <div className="flex flex-col h-full bg-bg border-l border-line-subtle">
       {/* Header */}
-      <div className={`px-5 py-4 ${groupMeta.color} border-b border-line-subtle flex items-start justify-between gap-3`}>
+      <div
+        className="px-5 py-4 border-b border-line-subtle flex items-start justify-between gap-3"
+        style={{ background: groupColorHex(groupMeta.id, 'surface') }}
+      >
         <div>
-          <div className={`font-mono text-sm font-bold ${groupMeta.textColor} mb-1`}>{process.id}</div>
-          <div className={`text-lg font-semibold ${groupMeta.textColor} leading-snug`}>
+          <div className="font-mono text-sm font-bold mb-1" style={{ color: groupText }}>{process.id}</div>
+          <div className="text-lg font-semibold leading-snug" style={{ color: groupText }}>
             {t(process.name, lang)}
           </div>
         </div>
@@ -107,7 +113,7 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
           <ol className="space-y-2">
             {process.outcomes.map((oc) => (
               <li key={oc.id} className="flex gap-2 text-sm">
-                <span className={`font-mono text-xs shrink-0 mt-0.5 ${groupMeta.textColor} opacity-80`}>
+                <span className="font-mono text-xs shrink-0 mt-0.5 opacity-80" style={{ color: groupText }}>
                   {process.id}.{oc.id}
                 </span>
                 <span className="text-content leading-relaxed">{t(oc.text, lang)}</span>
@@ -122,7 +128,7 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
             {process.base_practices.map((bp) => (
               <div key={bp.id} className="bg-surface rounded-lg p-3 space-y-1.5">
                 <div className="flex gap-2 items-baseline">
-                  <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{bp.id}</span>
+                  <span className="font-mono text-xs font-bold" style={{ color: groupText }}>{bp.id}</span>
                   <span className="text-sm font-medium text-content">{t(bp.name, lang)}</span>
                 </div>
                 <p className="text-xs text-content-2 leading-relaxed">{t(bp.description, lang)}</p>
@@ -155,7 +161,7 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
               return (
                 <div key={poi.id} className="bg-surface rounded-lg p-3">
                   <div className="flex gap-2 items-baseline mb-1">
-                    <span className="font-mono text-xs text-green-400 font-bold">{poi.id}</span>
+                    <span className="font-mono text-xs text-item font-bold">{poi.id}</span>
                     <span className="text-sm text-content">
                       {item ? t(item.name, lang) : poi.id}
                     </span>
@@ -191,12 +197,12 @@ export function DetailPanel({ process, groupMeta, lang, onClose, onSelectProcess
                       onClick={() => onSelectProcess?.(rp)}
                       className={`flex gap-2 items-baseline w-full text-left hover:opacity-80 transition-opacity ${onSelectProcess ? 'cursor-pointer' : 'cursor-default'}`}
                     >
-                      <span className={`font-mono text-xs font-bold shrink-0 ${rpGroup.textColor}`}>{rp.id}</span>
+                      <span className="font-mono text-xs font-bold shrink-0" style={{ color: groupColorHex(rpGroup.id, 'text') }}>{rp.id}</span>
                       <span className="text-sm text-content leading-snug">{t(rp.name, lang)}</span>
                     </button>
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {sharedItems.map((itemId) => (
-                        <span key={itemId} className="text-xs bg-surface-2 text-green-500 px-1.5 py-0.5 rounded font-mono">
+                        <span key={itemId} className="text-xs bg-surface-2 text-item px-1.5 py-0.5 rounded font-mono">
                           {itemId}
                         </span>
                       ))}

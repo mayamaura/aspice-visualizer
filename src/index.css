@@ -22,6 +22,13 @@
     --color-accent:        96 165 250;    /* blue-400 */
     --color-accent-bg:     23 37 84;      /* blue-950 */
 
+    /* ── エンティティアクセントトークン（ダーク） ─── */
+    --color-outcome:       129 140 248;   /* indigo-400 */
+    --color-outcome-bg:    30 27 75;      /* indigo-950 */
+    --color-item:          52 211 153;    /* emerald-400 */
+    --color-item-bg:       6 78 59;       /* emerald-900 */
+    --color-bp:            167 139 250;   /* violet-400 */
+
     /* ── グループトークン（ダーク） ─────────── */
     --grp-sys-surface: 30 58 138;   --grp-sys-line: 37 99 235;    --grp-sys-text: 191 219 254;   /* blue */
     --grp-swe-surface: 76 29 149;   --grp-swe-line: 124 58 237;   --grp-swe-text: 221 214 254;   /* violet */
@@ -48,6 +55,13 @@
     --color-content-muted: 107 114 128;   /* gray-500 */
     --color-accent:        37 99 235;     /* blue-600 */
     --color-accent-bg:     219 234 254;   /* blue-100 */
+
+    /* ── エンティティアクセントトークン（ライト） ─── */
+    --color-outcome:       79 70 229;     /* indigo-600 */
+    --color-outcome-bg:    224 231 255;   /* indigo-100 */
+    --color-item:          5 150 105;     /* emerald-600 */
+    --color-item-bg:       209 250 229;   /* emerald-100 */
+    --color-bp:            124 58 237;    /* violet-600 */
 
     /* ── グループトークン（ライト） ─────────── */
     --grp-sys-surface: 219 234 254;  --grp-sys-line: 59 130 246;   --grp-sys-text: 30 64 175;    /* blue */

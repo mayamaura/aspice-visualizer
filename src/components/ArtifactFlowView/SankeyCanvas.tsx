@@ -89,7 +89,7 @@ export function SankeyCanvas({ nodes, links, onNodeClick, onLinkClick }: Props) 
                 d={path}
                 fill={ll.color}
                 fillOpacity={isHovered ? 0.7 : isDimmed ? 0.08 : 0.35}
-                stroke={isHovered ? '#ffffff' : 'transparent'}
+                stroke={isHovered ? contentColor : 'transparent'}
                 strokeWidth={isHovered ? 0.5 : 0}
                 className="cursor-pointer transition-all duration-150"
                 onMouseEnter={() => setHoveredId(ll.id)}
@@ -161,7 +161,7 @@ function NodeLabel({ node, isDimmed, contentColor }: { node: LayoutNode; isDimme
       textAnchor="start"
       dominantBaseline="middle"
       fontSize={FONT_SIZE}
-      fill="#d1d5db"
+      fill={contentColor}
       fillOpacity={textOpacity}
       className="pointer-events-none"
       style={{ fontFamily: 'ui-monospace, monospace' }}

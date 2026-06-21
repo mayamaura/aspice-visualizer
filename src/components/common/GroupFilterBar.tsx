@@ -2,6 +2,7 @@ import type { ProcessGroup } from '../../types/aspice'
 import type { Language } from '../../types/aspice'
 import { PROCESS_GROUPS } from '../../data'
 import { t } from '../../store/languageStore'
+import { groupColorHex } from '../../utils/themeColors'
 
 interface Props {
   selected: Set<ProcessGroup>
@@ -54,9 +55,18 @@ export function GroupFilterBar({ selected, lang, onChange }: Props) {
           <button
             key={g.id}
             onClick={(e) => handleClick(g.id, e)}
+            style={
+              active
+                ? {
+                    background: groupColorHex(g.id, 'surface'),
+                    borderColor: groupColorHex(g.id, 'line'),
+                    color: groupColorHex(g.id, 'text'),
+                  }
+                : undefined
+            }
             className={`px-2 py-0.5 rounded text-xs font-mono font-bold border transition-all shrink-0 ${
               active
-                ? `${g.color} ${g.borderColor} ${g.textColor}`
+                ? ''
                 : 'bg-transparent border-line-subtle text-content-muted hover:border-line hover:text-content-2'
             }`}
             title={`${t(g.name, lang)}${lang === 'en' ? ' (Ctrl+click to multi-select)' : ' (Ctrl+クリックで複数選択)'}`}

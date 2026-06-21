@@ -2,6 +2,7 @@ import type { Process } from '../../types/aspice'
 import type { ProcessGroup_Meta } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import type { Language } from '../../types/aspice'
+import { groupColorHex } from '../../utils/themeColors'
 
 interface Props {
   process: Process
@@ -13,15 +14,23 @@ interface Props {
 }
 
 export function ProcessCard({ process, groupMeta, isSelected, isHighlighted, lang, onClick }: Props) {
+  const selectedStyle = isSelected
+    ? {
+        background: groupColorHex(groupMeta.id, 'surface'),
+        borderColor: groupColorHex(groupMeta.id, 'line'),
+        color: groupColorHex(groupMeta.id, 'text'),
+      }
+    : undefined
   return (
     <button
       onClick={() => onClick(process)}
+      style={selectedStyle}
       className={`
         w-full text-left px-3 py-2 rounded-lg border transition-all duration-150
-        ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950' : ''}
+        ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 ring-offset-bg' : ''}
         ${isSelected
-          ? `${groupMeta.color} ${groupMeta.borderColor} ${groupMeta.textColor} ring-2 ring-offset-1 ring-offset-gray-950 ring-white/30`
-          : `bg-gray-900 border-gray-700 hover:${groupMeta.color} hover:${groupMeta.borderColor} text-gray-300 hover:${groupMeta.textColor}`
+          ? 'ring-2 ring-offset-1 ring-offset-bg ring-content/20'
+          : 'bg-surface border-line text-content-2 hover:bg-surface-2 hover:text-content hover:border-content-muted'
         }
       `}
     >

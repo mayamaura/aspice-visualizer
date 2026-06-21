@@ -4,14 +4,6 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  safelist: [
-    // ProcessCard の hover:${groupMeta.color/borderColor/textColor} は動的クラスのため明示生成
-    { pattern: /^bg-(blue|violet|cyan|lime|purple|amber|green|yellow|orange|rose|teal|red)-900$/, variants: ['hover'] },
-    { pattern: /^border-(blue|violet|cyan|lime|purple|amber|green|yellow|orange|rose|teal|red)-600$/, variants: ['hover'] },
-    { pattern: /^text-(blue|violet|cyan|lime|purple|amber|green|yellow|orange|rose|teal|red)-200$/, variants: ['hover'] },
-    // ring-offset-gray-950 (ProcessCard 選択/ハイライト)
-    'ring-offset-gray-950',
-  ],
   theme: {
     extend: {
       colors: {
@@ -27,7 +19,12 @@ export default {
         accent:          'rgb(var(--color-accent) / <alpha-value>)',
         'accent-bg':     'rgb(var(--color-accent-bg) / <alpha-value>)',
 
-
+        // エンティティアクセント（成果/情報項目/BP）
+        outcome:         'rgb(var(--color-outcome) / <alpha-value>)',
+        'outcome-bg':    'rgb(var(--color-outcome-bg) / <alpha-value>)',
+        item:            'rgb(var(--color-item) / <alpha-value>)',
+        'item-bg':       'rgb(var(--color-item-bg) / <alpha-value>)',
+        bp:              'rgb(var(--color-bp) / <alpha-value>)',
       },
     },
   },

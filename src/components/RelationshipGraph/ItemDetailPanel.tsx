@@ -46,10 +46,10 @@ export function ItemDetailPanel({ item, lang, onClose }: Props) {
   return (
     <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 bg-emerald-950 border-b border-emerald-900 flex items-start justify-between gap-3">
+      <div className="px-5 py-4 bg-item-bg border-b border-line-subtle flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-sm font-bold text-emerald-400 mb-1">{item.id}</div>
-          <div className="text-base font-semibold text-emerald-100 leading-snug">
+          <div className="font-mono text-sm font-bold text-item mb-1">{item.id}</div>
+          <div className="text-base font-semibold text-content leading-snug">
             {t(item.name, lang)}
           </div>
         </div>

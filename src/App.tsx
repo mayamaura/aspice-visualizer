@@ -47,7 +47,7 @@ export default function App() {
           <div className="text-accent font-mono text-xs font-bold bg-accent-bg border border-accent px-2 py-0.5 rounded">
             ASPICE 4.0
           </div>
-          <div className="text-cyan-400 font-mono text-xs font-bold bg-cyan-950 border border-cyan-700 px-2 py-0.5 rounded">
+          <div className="text-accent font-mono text-xs font-bold bg-accent-bg border border-accent px-2 py-0.5 rounded">
             CS 2.0
           </div>
           <span className="text-content font-semibold text-sm">

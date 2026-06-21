@@ -29,7 +29,7 @@ import { PROCESS_GROUPS } from '../../data'
 import { INFORMATION_ITEMS } from '../../data'
 import type { NavigateTarget } from '../../utils/searchUtils'
 import { useTheme } from '../../store/themeStore'
-import { cssVar } from '../../utils/themeColors'
+import { cssVar, groupColorHex } from '../../utils/themeColors'
 
 const nodeTypes = {
   groupNode: GroupNode,
@@ -289,7 +289,7 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         {level === 'bp' && focusProcess && groupMeta && (
           <div className="flex items-center gap-2">
             <span className="text-content-muted text-xs">→</span>
-            <span className={`font-mono text-xs font-bold ${groupMeta.textColor}`}>{focusProcess.id}</span>
+            <span className="font-mono text-xs font-bold" style={{ color: groupColorHex(groupMeta.id, 'text') }}>{focusProcess.id}</span>
             <span className="text-xs text-content">{t(focusProcess.name, lang)}</span>
             <button
               onClick={handleBackToProcess}
@@ -304,7 +304,7 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
         {level === 'item' && focusItemId && (
           <div className="flex items-center gap-2">
             <span className="text-content-muted text-xs">→</span>
-            <span className="font-mono text-xs font-bold text-emerald-400">{focusItemId}</span>
+            <span className="font-mono text-xs font-bold text-item">{focusItemId}</span>
             <span className="text-xs text-content">
               {focusItem ? t(focusItem.name, lang) : focusItemId}
             </span>
