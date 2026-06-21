@@ -7,6 +7,7 @@ import { GroupFilterBar } from '../common/GroupFilterBar'
 import { t } from '../../store/languageStore'
 import type { Language } from '../../types/aspice'
 import type { NavigateTarget } from '../../utils/searchUtils'
+import { groupColorHex } from '../../utils/themeColors'
 
 interface Props {
   lang: Language
@@ -32,7 +33,6 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
   const [highlightProcessId, setHighlightProcessId] = useState<string | null>(null)
   const isFirstRender = useRef(true)
 
-  // selected 変更を URL に反映
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
@@ -41,7 +41,6 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
     onProcessChange?.(selected?.id ?? null)
   }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // グローバル検索からのナビゲーション処理
   useEffect(() => {
     if (!navigateTo || navigateTo.type !== 'process') return
     const p = (ALL_PROCESSES as Process[]).find((proc) => proc.id === navigateTo.processId)
@@ -82,13 +81,16 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
             {visibleGroups.map((group) => {
               const processes = (ALL_PROCESSES as Process[]).filter((p) => p.group === group.id)
               if (processes.length === 0) return null
+              const groupLine = groupColorHex(group.id, 'line')
+              const groupSurface = groupColorHex(group.id, 'surface')
+              const groupText = groupColorHex(group.id, 'text')
               return (
-                <div key={group.id} className={`rounded-xl border ${group.borderColor} overflow-hidden`}>
-                  <div className={`${group.color} px-4 py-2.5 border-b ${group.borderColor}`}>
-                    <div className={`font-mono text-sm font-bold ${group.textColor}`}>{group.id}</div>
-                    <div className={`text-xs ${group.textColor} opacity-80 mt-0.5`}>{t(group.name, lang)}</div>
+                <div key={group.id} className="rounded-xl border overflow-hidden" style={{ borderColor: groupLine }}>
+                  <div className="px-4 py-2.5 border-b" style={{ background: groupSurface, borderColor: groupLine }}>
+                    <div className="font-mono text-sm font-bold" style={{ color: groupText }}>{group.id}</div>
+                    <div className="text-xs opacity-80 mt-0.5" style={{ color: groupText }}>{t(group.name, lang)}</div>
                   </div>
-                  <div className="p-2 space-y-1.5 bg-gray-900/50">
+                  <div className="p-2 space-y-1.5 bg-surface/50">
                     {processes.map((p) => (
                       <ProcessCard
                         key={p.id}

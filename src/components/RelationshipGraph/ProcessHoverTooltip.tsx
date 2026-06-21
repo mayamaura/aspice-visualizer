@@ -20,17 +20,17 @@ export function ProcessHoverTooltip({ purpose, outcomeCount, bpCount, x, y, lang
         pointerEvents: 'none',
         maxWidth: 280,
       }}
-      className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 shadow-xl text-xs"
+      className="bg-surface border border-line rounded-lg px-3 py-2 shadow-xl text-xs"
     >
-      <p className="text-gray-200 leading-snug mb-2">{purpose}</p>
-      <div className="flex gap-4 text-gray-400">
+      <p className="text-content leading-snug mb-2">{purpose}</p>
+      <div className="flex gap-4 text-content-2">
         <span>
           {lang === 'en' ? 'Outcomes' : '成果数'}:{' '}
-          <span className="text-white font-semibold">{outcomeCount}</span>
+          <span className="text-content font-semibold">{outcomeCount}</span>
         </span>
         <span>
           {lang === 'en' ? 'BPs' : 'BP数'}:{' '}
-          <span className="text-white font-semibold">{bpCount}</span>
+          <span className="text-content font-semibold">{bpCount}</span>
         </span>
       </div>
     </div>

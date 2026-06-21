@@ -667,40 +667,92 @@ export const STORAGE_KEYS = {
 
 ## 6. スタイル設計
 
-### 6.1 グループカラーマッピング
+### 6.1 テーマシステム（v3.0 Phase 2）
 
-| グループ | bg | border | text |
+v3.0 Phase 2 からすべての色は **CSS カスタムプロパティ（CSS 変数）** を経由したセマンティックトークンで管理する。Tailwind CSS の `theme.extend.colors` に `rgb(var(--token) / <alpha-value>)` 形式で登録し、`bg-bg` / `text-content` 等のユーティリティクラスとして利用する。
+
+#### セマンティックトークン一覧
+
+| トークン | Tailwind クラス例 | ダーク値 (RGB) | ライト値 (RGB) |
 |---|---|---|---|
-| SYS | blue-900 | blue-600 | blue-200 |
-| SWE | violet-900 | violet-600 | violet-200 |
-| HWE | cyan-900 | cyan-600 | cyan-200 |
-| VAL | lime-900 | lime-600 | lime-200 |
-| MLE | purple-900 | purple-600 | purple-200 |
-| MAN | amber-900 | amber-600 | amber-200 |
-| SUP | green-900 | green-600 | green-200 |
-| PIM | yellow-900 | yellow-600 | yellow-200 |
-| ACQ | orange-900 | orange-600 | orange-200 |
-| SPL | rose-900 | rose-600 | rose-200 |
-| REU | teal-900 | teal-600 | teal-200 |
-| SEC | red-900 | red-600 | red-200 |
+| `--color-bg` | `bg-bg` | 3 7 18 | 255 255 255 |
+| `--color-surface` | `bg-surface` | 17 24 39 | 249 250 251 |
+| `--color-surface-2` | `bg-surface-2` | 31 41 55 | 243 244 246 |
+| `--color-line` | `border-line` | 55 65 81 | 209 213 219 |
+| `--color-line-subtle` | `border-line-subtle` | 31 41 55 | 229 231 235 |
+| `--color-content` | `text-content` | 243 244 246 | 17 24 39 |
+| `--color-content-2` | `text-content-2` | 209 213 219 | 55 65 81 |
+| `--color-content-muted` | `text-content-muted` | 107 114 128 | 107 114 128 |
+| `--color-accent` | `text-accent` | 96 165 250 | 37 99 235 |
+| `--color-accent-bg` | `bg-accent-bg` | 23 37 84 | 219 234 254 |
+| `--color-outcome` | `text-outcome` | 129 140 248 | 79 70 229 |
+| `--color-outcome-bg` | `bg-outcome-bg` | 30 27 75 | 224 231 255 |
+| `--color-item` | `text-item` | 52 211 153 | 5 150 105 |
+| `--color-item-bg` | `bg-item-bg` | 6 78 59 | 209 250 229 |
+| `--color-bp` | `text-bp` | 167 139 250 | 124 58 237 |
 
-### 6.2 グラフノードカラー（React Flow）
+`--color-outcome` / `--color-item` / `--color-bp` は「プロセス成果（indigo）・情報項目（emerald）・基本プラクティス（violet）」を表すエンティティアクセントトークン。入力系の情報項目には青系の `--color-accent` / `--color-accent-bg` を流用する。これらは詳細パネルのヘッダー、グラフのノード/エッジラベル、検索カテゴリ見出し、エッジ種別フィルター等で使用し、indigo/emerald 等の固定 Tailwind クラスのハードコードは廃止した。
+
+テーマの切替は `src/store/themeStore.ts` が `<html>` 要素に `.light` クラスを付与/除去することで実現する。CSS は `:root { ... }` をダーク既定、`:root.light { ... }` でライト上書き値を定義する。
+
+#### インラインスタイル用ヘルパー（React Flow など）
+
+React Flow のノード/エッジは Tailwind クラスが使えないため、`src/utils/themeColors.ts` のヘルパーで実行時に CSS 変数を読み取る。
+
+```typescript
+// CSS 変数値を rgb() 文字列で返す
+cssVar('--color-bg')          // → 'rgb(3 7 18)' (dark) or 'rgb(255 255 255)' (light)
+
+// グループトークン（surface / line / text）を読み取る
+groupColorHex('SYS', 'surface')  // → 'rgb(30 58 138)' (dark)
+```
+
+テーマ切替時にグラフ/サンキー図が更新されるよう、`RelationshipGraphView`・`VModelView`・`ArtifactFlowView` の `useMemo` 依存配列に `theme`（`useTheme()` 第1要素）を含める。
+
+### 6.2 グループカラートークン
+
+各グループの色は CSS 変数 `--grp-<id>-surface / line / text` の 3 種×12 グループで管理し、ダーク/ライト両値を定義する。グループ色は React Flow のノードに加え、React コンポーネント（`ProcessCard`・`DetailPanel`・`BPLevelDetailPanel`・`GroupFilterBar`・`MatrixView`・`ProcessMapView` 等）でも `groupColorHex(group, role)` ヘルパーによるインライン `style` で適用する（Tailwind の動的クラス連結 `hover:${...}` は JIT に解決されないため使用しない）。ライトモードでは淡色 surface + 濃色 text となり、ダーク前提の固定 Tailwind クラス（`bg-blue-900` / `text-blue-200` 等）のハードコードは廃止した。
+
+| グループ | ダーク surface → line → text | ライト surface → line → text |
+|---|---|---|
+| SYS | blue-950→blue-700→blue-300 | blue-100→blue-500→blue-800 |
+| SWE | violet-950→violet-700→violet-300 | violet-100→violet-500→violet-800 |
+| HWE | cyan-950→cyan-700→cyan-300 | cyan-100→cyan-500→cyan-800 |
+| VAL | lime-950→lime-700→lime-300 | lime-100→lime-600→lime-800 |
+| MLE | purple-950→purple-700→purple-300 | purple-100→purple-500→purple-800 |
+| MAN | amber-950→amber-700→amber-300 | amber-100→amber-600→amber-800 |
+| SUP | green-950→green-700→green-300 | green-100→green-600→green-800 |
+| PIM | yellow-950→yellow-700→yellow-300 | yellow-100→yellow-600→yellow-800 |
+| ACQ | orange-950→orange-700→orange-300 | orange-100→orange-600→orange-800 |
+| SPL | rose-950→rose-700→rose-300 | rose-100→rose-500→rose-800 |
+| REU | teal-950→teal-700→teal-300 | teal-100→teal-600→teal-800 |
+| SEC | red-950→red-700→red-300 | red-100→red-500→red-800 |
+
+### 6.3 グラフノードカラー（React Flow）
+
+グループカラーはすべて `groupColorHex(group, role)` ヘルパー経由で取得し、ハードコードは廃止した。
 
 | ノード種別 | 背景 | ボーダー |
 |---|---|---|
-| GroupNode | グループ色（hex, opacity 15%） | グループボーダー色（hex） |
-| ProcessNode | グループ色（hex） | グループボーダー色（hex） |
-| OutcomeNode | #1e1b4b (indigo-950) | #4f46e5 (indigo-600) |
-| BPNode | グループ色（hex） | グループボーダー色（hex） |
-| ItemNode（出力） | #052e16 (green-950) | #22c55e (green-500) |
-| ItemNode（入力） | #1e3a5f (blue-950) | #3b82f6 (blue-500) |
+| GroupNode | `groupColorHex(group, 'surface')` + 透過 | `groupColorHex(group, 'line')` |
+| ProcessNode | `groupColorHex(group, 'surface')` | `groupColorHex(group, 'line')` |
+| OutcomeNode | `bg-outcome-bg` / `cssVar('--color-outcome')` | `cssVar('--color-outcome')` |
+| BPNode | `groupColorHex(group, 'surface')` | `groupColorHex(group, 'line')` |
+| ItemNode（出力） | `cssVar('--color-item-bg')` | `cssVar('--color-item')` |
+| ItemNode（入力） | `cssVar('--color-accent-bg')` | `cssVar('--color-accent')` |
 
-### 6.3 グラフエッジカラー
+### 6.4 グラフエッジ・背景カラー
 
-| エッジ種別 | ストローク | スタイル |
-|---|---|---|
-| BP → Outcome (supports) | #6366f1 (indigo-500) | dashed |
-| Outcome → Item (produces) | #22c55e (green-500) | solid |
+| 要素 | 色 |
+|---|---|
+| BP → Outcome エッジ線 | #6366f1 (indigo-500)（固定・両モードで可視） |
+| Outcome → Item エッジ線 | #22c55e (green-500)（固定・両モードで可視） |
+| supports ラベル文字 | `cssVar('--color-outcome')` |
+| produces ラベル文字 | `cssVar('--color-item')` |
+| エッジラベル背景 | `cssVar('--color-bg')` |
+| ReactFlow Background | `cssVar('--color-line')` |
+| ReactFlow MiniMap 背景 | `cssVar('--color-bg')` |
+| Vモデル対応線 | `cssVar('--color-line')` |
 
 ### 4.10 ArtifactFlowView（FR-8）
 

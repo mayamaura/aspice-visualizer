@@ -9,8 +9,8 @@ interface Props {
 }
 
 const EDGE_TYPES: { id: EdgeType; labelEn: string; labelJa: string; color: string; border: string }[] = [
-  { id: 'supports', labelEn: 'supports outcome', labelJa: 'プロセス成果を達成', color: 'bg-indigo-950', border: 'border-indigo-500' },
-  { id: 'produces', labelEn: 'produces item',    labelJa: '情報項目を生成',     color: 'bg-green-950',  border: 'border-green-500' },
+  { id: 'supports', labelEn: 'supports outcome', labelJa: 'プロセス成果を達成', color: 'bg-outcome-bg', border: 'border-outcome' },
+  { id: 'produces', labelEn: 'produces item',    labelJa: '情報項目を生成',     color: 'bg-item-bg',    border: 'border-item' },
 ]
 
 export function EdgeTypeFilterBar({ selected, lang, onChange }: Props) {
@@ -27,7 +27,7 @@ export function EdgeTypeFilterBar({ selected, lang, onChange }: Props) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-gray-500 shrink-0">
+      <span className="text-xs text-content-muted shrink-0">
         {lang === 'en' ? 'Edge:' : 'エッジ:'}
       </span>
       {EDGE_TYPES.map((e) => {
@@ -38,8 +38,8 @@ export function EdgeTypeFilterBar({ selected, lang, onChange }: Props) {
             onClick={() => toggle(e.id)}
             className={`px-2 py-0.5 rounded text-xs font-medium border transition-all shrink-0 ${
               active
-                ? `${e.color} ${e.border} text-gray-200`
-                : 'bg-transparent border-gray-800 text-gray-600 hover:border-gray-600 hover:text-gray-400'
+                ? `${e.color} ${e.border} text-content`
+                : 'bg-transparent border-line-subtle text-content-muted hover:border-line hover:text-content-2'
             }`}
           >
             {lang === 'en' ? e.labelEn : e.labelJa}

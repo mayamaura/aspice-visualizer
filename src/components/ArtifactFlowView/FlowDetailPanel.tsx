@@ -18,23 +18,23 @@ interface Props {
 
 export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props) {
   return (
-    <div className="w-80 flex flex-col bg-gray-900 border-l border-gray-800 overflow-hidden shrink-0">
+    <div className="w-80 flex flex-col bg-surface border-l border-line-subtle overflow-hidden shrink-0">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-200 truncate max-w-[200px]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle">
+        <span className="text-xs font-semibold text-content truncate max-w-[200px]">
           {selection.title}
         </span>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-300 transition-colors ml-2 shrink-0"
+          className="text-content-muted hover:text-content-2 transition-colors ml-2 shrink-0"
         >
           <X size={14} />
         </button>
       </div>
 
       {/* 件数バッジ */}
-      <div className="px-4 py-2 border-b border-gray-800">
-        <span className="text-xs text-gray-400">
+      <div className="px-4 py-2 border-b border-line-subtle">
+        <span className="text-xs text-content-2">
           {selection.itemIds.length}{' '}
           {lang === 'en' ? 'information item(s)' : '件の情報項目'}
         </span>
@@ -53,10 +53,10 @@ export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props)
             <button
               key={id}
               onClick={() => onNavigate({ type: 'item', itemId: id })}
-              className="w-full text-left flex items-start gap-2 px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 transition-colors group"
+              className="w-full text-left flex items-start gap-2 px-3 py-2 rounded-md bg-surface-2 hover:bg-line transition-colors group"
             >
-              <span className="text-emerald-400 font-mono text-xs shrink-0 mt-0.5">{id}</span>
-              <span className="text-gray-300 text-xs leading-snug group-hover:text-white">
+              <span className="text-item font-mono text-xs shrink-0 mt-0.5">{id}</span>
+              <span className="text-content-2 text-xs leading-snug group-hover:text-content">
                 {name}
               </span>
             </button>
@@ -65,8 +65,8 @@ export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props)
       </div>
 
       {/* フッター注記 */}
-      <div className="px-4 py-2 border-t border-gray-800">
-        <p className="text-xs text-gray-600">
+      <div className="px-4 py-2 border-t border-line-subtle">
+        <p className="text-xs text-content-muted">
           {lang === 'en'
             ? 'Click an item to view in Relationship Graph'
             : '情報項目をクリックするとリレーションシップグラフに遷移します'}

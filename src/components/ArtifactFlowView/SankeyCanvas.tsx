@@ -7,6 +7,8 @@ import {
 } from './sankeyLayout'
 import type { LayoutNode, LayoutLink } from './sankeyLayout'
 import type { SankeyNode, SankeyLink } from './sankeyData'
+import { useTheme } from '../../store/themeStore'
+import { cssVar } from '../../utils/themeColors'
 
 interface Props {
   nodes: SankeyNode[]
@@ -22,6 +24,8 @@ export function SankeyCanvas({ nodes, links, onNodeClick, onLinkClick }: Props) 
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 800, height: 600 })
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [theme] = useTheme()
+  const contentColor = useMemo(() => cssVar('--color-content'), [theme])
 
   useEffect(() => {
     const el = containerRef.current
@@ -85,7 +89,7 @@ export function SankeyCanvas({ nodes, links, onNodeClick, onLinkClick }: Props) 
                 d={path}
                 fill={ll.color}
                 fillOpacity={isHovered ? 0.7 : isDimmed ? 0.08 : 0.35}
-                stroke={isHovered ? '#ffffff' : 'transparent'}
+                stroke={isHovered ? contentColor : 'transparent'}
                 strokeWidth={isHovered ? 0.5 : 0}
                 className="cursor-pointer transition-all duration-150"
                 onMouseEnter={() => setHoveredId(ll.id)}
@@ -117,7 +121,7 @@ export function SankeyCanvas({ nodes, links, onNodeClick, onLinkClick }: Props) 
                   onClick={() => onNodeClick(ln.id)}
                 />
                 {/* ノードラベル */}
-                <NodeLabel node={ln} isDimmed={isDimmed} />
+                <NodeLabel node={ln} isDimmed={isDimmed} contentColor={contentColor} />
               </g>
             )
           })}
@@ -127,7 +131,7 @@ export function SankeyCanvas({ nodes, links, onNodeClick, onLinkClick }: Props) 
   )
 }
 
-function NodeLabel({ node, isDimmed }: { node: LayoutNode; isDimmed: boolean }) {
+function NodeLabel({ node, isDimmed, contentColor }: { node: LayoutNode; isDimmed: boolean; contentColor: string }) {
   const FONT_SIZE = 11
   const PAD = 6
   const textOpacity = isDimmed ? 0.3 : 1
@@ -141,7 +145,7 @@ function NodeLabel({ node, isDimmed }: { node: LayoutNode; isDimmed: boolean }) 
         textAnchor="end"
         dominantBaseline="middle"
         fontSize={FONT_SIZE}
-        fill="#d1d5db"
+        fill={contentColor}
         fillOpacity={textOpacity}
         className="pointer-events-none"
         style={{ fontFamily: 'ui-monospace, monospace' }}
@@ -157,7 +161,7 @@ function NodeLabel({ node, isDimmed }: { node: LayoutNode; isDimmed: boolean }) 
       textAnchor="start"
       dominantBaseline="middle"
       fontSize={FONT_SIZE}
-      fill="#d1d5db"
+      fill={contentColor}
       fillOpacity={textOpacity}
       className="pointer-events-none"
       style={{ fontFamily: 'ui-monospace, monospace' }}

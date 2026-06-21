@@ -1,4 +1,5 @@
 import { Handle, Position } from 'reactflow'
+import { cssVar } from '../../utils/themeColors'
 
 interface GroupNodeData {
   label: string
@@ -59,7 +60,7 @@ export function ProcessNode({ data }: { data: ProcessNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color: data.border }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-200 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       {showHandles && <Handle type="source" position={Position.Right} style={{ background: data.border }} />}
     </div>
   )
@@ -71,12 +72,16 @@ interface OutcomeNodeData {
 }
 
 export function OutcomeNode({ data }: { data: OutcomeNodeData }) {
+  const accent = cssVar('--color-outcome')
   return (
-    <div className="rounded-lg px-3 py-2 min-w-[200px] max-w-[280px] bg-indigo-950 border-2 border-indigo-600">
-      <Handle type="target" position={Position.Left} style={{ background: '#6366f1' }} />
-      <div className="font-mono text-xs font-bold text-indigo-400 mb-0.5">{data.label}</div>
-      <div className="text-xs text-indigo-200 leading-tight">{data.description}</div>
-      <Handle type="source" position={Position.Right} style={{ background: '#6366f1' }} />
+    <div
+      className="rounded-lg px-3 py-2 min-w-[200px] max-w-[280px] bg-outcome-bg border-2"
+      style={{ borderColor: accent }}
+    >
+      <Handle type="target" position={Position.Left} style={{ background: accent }} />
+      <div className="font-mono text-xs font-bold text-outcome mb-0.5">{data.label}</div>
+      <div className="text-xs text-content leading-tight">{data.description}</div>
+      <Handle type="source" position={Position.Right} style={{ background: accent }} />
     </div>
   )
 }
@@ -98,7 +103,7 @@ export function BPNode({ data }: { data: BPNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color: data.border }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-200 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       <Handle type="source" position={Position.Right} style={{ background: data.border }} />
     </div>
   )
@@ -111,8 +116,8 @@ interface ItemNodeData {
 }
 
 export function ItemNode({ data }: { data: ItemNodeData }) {
-  const color = data.isOutput ? '#22c55e' : '#3b82f6'
-  const bg = data.isOutput ? '#052e16' : '#1e3a5f'
+  const color = cssVar(data.isOutput ? '--color-item' : '--color-accent')
+  const bg = cssVar(data.isOutput ? '--color-item-bg' : '--color-accent-bg')
   return (
     <div
       className="rounded-md px-3 py-2 min-w-[120px] max-w-[200px]"
@@ -122,7 +127,7 @@ export function ItemNode({ data }: { data: ItemNodeData }) {
       <div className="font-mono text-xs font-bold mb-0.5" style={{ color }}>
         {data.label}
       </div>
-      <div className="text-xs text-gray-300 leading-tight">{data.name}</div>
+      <div className="text-xs text-content leading-tight">{data.name}</div>
       <Handle type="source" position={Position.Right} style={{ background: color }} />
     </div>
   )

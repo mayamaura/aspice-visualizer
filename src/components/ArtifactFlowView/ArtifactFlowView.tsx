@@ -8,6 +8,8 @@ import { SankeyCanvas } from './SankeyCanvas'
 import { FlowDetailPanel } from './FlowDetailPanel'
 import type { FlowSelection } from './FlowDetailPanel'
 import type { LayoutLink } from './sankeyLayout'
+import { groupColorHex } from '../../utils/themeColors'
+import { useTheme } from '../../store/themeStore'
 
 interface Props {
   lang: Language
@@ -30,8 +32,8 @@ export function ArtifactFlowView({
     () => (initialFlowGroup as ProcessGroup | null) ?? null,
   )
   const [selection, setSelection] = useState<FlowSelection | null>(null)
+  const [theme] = useTheme()
 
-  // navigateTo でアイテム選択されたら詳細パネルを開く
   useEffect(() => {
     if (!navigateTo) return
     if (navigateTo.type === 'item') {
@@ -67,11 +69,9 @@ export function ArtifactFlowView({
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       if (selectedGroup === null) {
-        // グループレベル: グループノードクリック → プロセスレベルへ
         if (nodeId.startsWith('group-')) {
           handleGroupSelect(nodeId)
         } else if (nodeId.startsWith('prefix-')) {
-          // 右ノード（カテゴリ）クリック → 詳細パネル
           const prefix = nodeId.replace('prefix-', '')
           const items = INFORMATION_ITEMS.filter((i) => i.id.startsWith(`${prefix}-`))
           const itemIds = items.map((i) => i.id)
@@ -82,7 +82,6 @@ export function ArtifactFlowView({
           })
         }
       } else {
-        // プロセスレベル: 右ノード（情報項目）クリック → 詳細パネル
         if (nodeId.startsWith('item-')) {
           const itemId = nodeId.replace('item-', '')
           const item = INFORMATION_ITEMS.find((i) => i.id === itemId)
@@ -101,7 +100,6 @@ export function ArtifactFlowView({
 
   const handleLinkClick = useCallback(
     (ll: LayoutLink) => {
-      // リンク ID は "group-SWE->prefix-08" or "proc-SWE.1->item-17-51" の形式
       const parts = ll.id.split('->')
       const srcLabel = parts[0].replace(/^(group-|proc-)/, '')
       const tgtLabel = parts[1]?.replace(/^(prefix-|item-)/, '') ?? ''
@@ -122,13 +120,13 @@ export function ArtifactFlowView({
     [selectedGroup, lang],
   )
 
-  // サンキーデータを計算
   const { nodes, links } = useMemo(() => {
     if (selectedGroup === null) {
       return buildGroupSankeyData(ALL_PROCESSES, lang)
     }
     return buildProcessSankeyData(ALL_PROCESSES, selectedGroup, lang)
-  }, [selectedGroup, lang])
+  // theme を依存に追加してテーマ変更時にノード色を再計算
+  }, [selectedGroup, lang, theme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const groupMeta = selectedGroup
     ? PROCESS_GROUPS.find((g) => g.id === selectedGroup)
@@ -146,39 +144,42 @@ export function ArtifactFlowView({
       {/* メインキャンバスエリア */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ツールバー */}
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-900 border-b border-gray-800 shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-surface border-b border-line-subtle shrink-0">
           {selectedGroup === null ? (
-            <span className="text-sm font-semibold text-gray-200">
+            <span className="text-sm font-semibold text-content">
               {lang === 'en' ? 'Process Group → Item Category' : 'プロセスグループ → 情報項目カテゴリ'}
             </span>
           ) : (
             <>
               <button
                 onClick={handleBackToGroup}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition-colors"
+                className="flex items-center gap-1 text-xs text-content-2 hover:text-content transition-colors"
               >
                 <ChevronLeft size={14} />
                 {lang === 'en' ? 'Back to Groups' : 'グループビューに戻る'}
               </button>
-              <span className="text-gray-700">|</span>
+              <span className="text-content-muted">|</span>
               <span
                 className="text-xs font-semibold px-2 py-0.5 rounded"
-                style={{ background: groupMeta ? groupHexFromId(selectedGroup) : '#374151' }}
+                style={{
+                  background: selectedGroup ? groupColorHex(selectedGroup, 'surface') : undefined,
+                  color: selectedGroup ? groupColorHex(selectedGroup, 'text') : undefined,
+                }}
               >
-                <span className="text-white">{selectedGroup}</span>
+                <span>{selectedGroup}</span>
                 {groupMeta && (
-                  <span className="text-gray-300 ml-1">
+                  <span className="ml-1 opacity-80">
                     {lang === 'en' ? groupMeta.name.en : groupMeta.name.ja}
                   </span>
                 )}
               </span>
-              <span className="text-gray-400 text-xs">
+              <span className="text-content-2 text-xs">
                 {lang === 'en' ? '— Process → Information Item' : '— プロセス → 情報項目'}
               </span>
             </>
           )}
 
-          <div className="ml-auto text-xs text-gray-600">
+          <div className="ml-auto text-xs text-content-muted">
             {lang === 'en'
               ? 'Band width = number of information items'
               : '帯幅 = 情報項目数に比例'}
@@ -186,7 +187,7 @@ export function ArtifactFlowView({
         </div>
 
         {/* SVG キャンバス */}
-        <div className="flex-1 overflow-hidden bg-gray-950">
+        <div className="flex-1 overflow-hidden bg-bg">
           <SankeyCanvas
             nodes={nodes}
             links={links}
@@ -207,22 +208,4 @@ export function ArtifactFlowView({
       )}
     </div>
   )
-}
-
-function groupHexFromId(group: ProcessGroup): string {
-  const map: Record<ProcessGroup, string> = {
-    SYS: '#1e3a8a',
-    SWE: '#4c1d95',
-    HWE: '#0e7490',
-    VAL: '#365314',
-    MLE: '#581c87',
-    MAN: '#78350f',
-    SUP: '#14532d',
-    PIM: '#713f12',
-    ACQ: '#7c2d12',
-    SPL: '#881337',
-    REU: '#134e4a',
-    SEC: '#7f1d1d',
-  }
-  return map[group] ?? '#374151'
 }

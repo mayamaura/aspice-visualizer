@@ -1,21 +1,8 @@
 import type { Node, Edge } from 'reactflow'
 import { ALL_PROCESSES } from '../../data'
 import { t } from '../../store/languageStore'
-import type { Language } from '../../types/aspice'
-
-const GROUP_COLOR: Record<string, string> = {
-  SYS: '#1e3a5f',
-  SWE: '#2d1b69',
-  HWE: '#0e4f5c',
-  VAL: '#1a3a1a',
-}
-
-const GROUP_BORDER: Record<string, string> = {
-  SYS: '#2563eb',
-  SWE: '#7c3aed',
-  HWE: '#0891b2',
-  VAL: '#65a30d',
-}
+import type { Language, ProcessGroup } from '../../types/aspice'
+import { groupColorHex, cssVar } from '../../utils/themeColors'
 
 // V字の左辺（仕様・設計フェーズ）: 上から下
 const LEFT_SIDE = [
@@ -72,8 +59,8 @@ export function buildVModelGraph(lang: Language): { nodes: Node[]; edges: Edge[]
         label: p.id,
         name: t(p.name, lang),
         group: p.group,
-        bg: GROUP_COLOR[p.group] ?? '#1f2937',
-        border: GROUP_BORDER[p.group] ?? '#4b5563',
+        bg: groupColorHex(p.group as ProcessGroup, 'surface'),
+        border: groupColorHex(p.group as ProcessGroup, 'line'),
       },
     })
   })
@@ -89,8 +76,8 @@ export function buildVModelGraph(lang: Language): { nodes: Node[]; edges: Edge[]
         label: p.id,
         name: t(p.name, lang),
         group: p.group,
-        bg: GROUP_COLOR[p.group] ?? '#1f2937',
-        border: GROUP_BORDER[p.group] ?? '#4b5563',
+        bg: groupColorHex(p.group as ProcessGroup, 'surface'),
+        border: groupColorHex(p.group as ProcessGroup, 'line'),
       },
     })
   })
@@ -106,8 +93,8 @@ export function buildVModelGraph(lang: Language): { nodes: Node[]; edges: Edge[]
         label: val1.id,
         name: t(val1.name, lang),
         group: val1.group,
-        bg: GROUP_COLOR['VAL'],
-        border: GROUP_BORDER['VAL'],
+        bg: groupColorHex('VAL', 'surface'),
+        border: groupColorHex('VAL', 'line'),
       },
     })
   }
@@ -120,7 +107,7 @@ export function buildVModelGraph(lang: Language): { nodes: Node[]; edges: Edge[]
       target: right,
       type: 'straight',
       style: {
-        stroke: '#6b7280',
+        stroke: cssVar('--color-line'),
         strokeDasharray: '4 4',
         strokeWidth: 1.5,
       },
