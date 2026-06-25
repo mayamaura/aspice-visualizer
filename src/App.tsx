@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import { Map, GitBranch, Network, Grid2x2, Workflow, Sun, Moon } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Map, GitBranch, Network, Grid2x2, Workflow, Sun, Moon, X } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
 import { VModelView } from './components/VModelView/VModelView'
 import { MatrixView } from './components/MatrixView/MatrixView'
 import { ArtifactFlowView } from './components/ArtifactFlowView/ArtifactFlowView'
-import { GlobalSearch } from './components/common/GlobalSearch'
+import { GlobalSearch, type GlobalSearchHandle } from './components/common/GlobalSearch'
 import { useLang } from './store/languageStore'
 import { useTheme } from './store/themeStore'
 import { useAppUrlState } from './hooks/useAppUrlState'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { NavigateTarget } from './utils/searchUtils'
 
 type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
@@ -21,12 +22,29 @@ const VIEWS = [
   { id: 'flow' as ViewId, icon: Workflow, labelEn: 'Artifact Flow', labelJa: '成果物フロー' },
 ]
 
+const SHORTCUTS: { keys: string; en: string; ja: string }[] = [
+  { keys: 'Ctrl/⌘ K  ·  /', en: 'Focus search', ja: '検索にフォーカス' },
+  { keys: '↑ ↓', en: 'Navigate results', ja: '検索結果を移動' },
+  { keys: 'Enter', en: 'Open selected', ja: '選択中を開く' },
+  { keys: '1 – 5', en: 'Switch view', ja: 'ビュー切替' },
+  { keys: '?', en: 'Toggle this help', ja: 'このヘルプを開閉' },
+  { keys: 'Esc', en: 'Close search', ja: '検索を閉じる' },
+]
+
 export default function App() {
   const { url, setView, setProcess, setGraphState, setFlowState } = useAppUrlState()
   const view = url.view
   const [lang, toggleLang] = useLang()
   const [theme, toggleTheme] = useTheme()
   const [pendingNav, setPendingNav] = useState<NavigateTarget | null>(null)
+  const searchRef = useRef<GlobalSearchHandle>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
+
+  useKeyboardShortcuts({
+    onSearchFocus: () => searchRef.current?.focus(),
+    onSelectView: (index) => { const v = VIEWS[index]; if (v) setView(v.id) },
+    onToggleHelp: () => setHelpOpen((o) => !o),
+  })
 
   const handleNavigate = (target: NavigateTarget) => {
     if (target.type === 'process') {
@@ -72,7 +90,7 @@ export default function App() {
         </nav>
 
         {/* Global Search */}
-        <GlobalSearch lang={lang} onNavigate={handleNavigate} />
+        <GlobalSearch ref={searchRef} lang={lang} onNavigate={handleNavigate} />
 
         <div className="ml-auto flex items-center gap-3">
           {/* Theme Toggle */}
@@ -95,6 +113,46 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {helpOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+          onClick={() => setHelpOpen(false)}
+        >
+          <div
+            className="w-80 max-w-[90vw] bg-surface border border-line rounded-lg shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-content">
+                {lang === 'en' ? 'Keyboard Shortcuts' : 'キーボードショートカット'}
+              </h2>
+              <button
+                onClick={() => setHelpOpen(false)}
+                aria-label={lang === 'en' ? 'Close' : '閉じる'}
+                className="text-content-muted hover:text-content transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <dl className="space-y-1.5 text-xs">
+              {SHORTCUTS.map(({ keys, en, ja }) => (
+                <div key={keys} className="flex items-center justify-between gap-4">
+                  <dt className="text-content-2">{lang === 'en' ? en : ja}</dt>
+                  <dd>
+                    <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 text-content-muted font-mono text-[10px]">
+                      {keys}
+                    </kbd>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 text-[10px] text-content-muted">
+              {lang === 'en' ? 'Full help arrives in a later update.' : '詳細ヘルプは今後のアップデートで追加されます。'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* View Content */}
       <main className="flex-1 overflow-hidden">

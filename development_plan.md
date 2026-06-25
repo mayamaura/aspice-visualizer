@@ -416,7 +416,7 @@ feat/artifact-flow
 **作成日:** 2026-06-14
 **前提:** 上記 v2.0 の全7フェーズ（5ビュー＋検索＋URL状態）完了済み
 **実装担当:** Sonnet が本計画を参照して設計・実装できる粒度で記述
-**ステータス:** 未着手
+**ステータス:** Phase 1, 2 完了
 
 > v2.0 までと記載粒度が異なるが、精度を重視し詳細度を上げている。本計画内の Phase 番号（1〜5）は v3.0 内のローカル番号であり、v2.0 の Phase 1〜7 とは別系列。
 
@@ -441,13 +441,13 @@ feat/artifact-flow
 
 ## v3.0 フェーズ概要
 
-| Phase | 内容 | 優先度 | 規模 | 依存 |
-|---|---|---|---|---|
-| 1 | 設定永続化基盤（themeStore + localStorage） | ★★★ | S | なし |
-| 2 | テーマトークン化と全面ライト対応 | ★★★ | XL | Phase 1 |
-| 3 | キーボード操作・ショートカット | ★★☆ | M | なし（1と並行可） |
-| 4 | オンボーディング・ヘルプ | ★★☆ | M | Phase 3（?キー連携） |
-| 5 | 視覚的洗練・アクセシビリティ | ★☆☆ | M | Phase 2 |
+| Phase | 内容 | 優先度 | 規模 | 依存 | 状態 |
+|---|---|---|---|---|---|
+| 1 | 設定永続化基盤（themeStore + localStorage） | ★★★ | S | なし | ✅ 完了 |
+| 2 | テーマトークン化と全面ライト対応 | ★★★ | XL | Phase 1 | ✅ 完了 |
+| 3 | キーボード操作・ショートカット | ★★☆ | M | なし（1と並行可） | 未着手 |
+| 4 | オンボーディング・ヘルプ | ★★☆ | M | Phase 3（?キー連携） | 未着手 |
+| 5 | 視覚的洗練・アクセシビリティ | ★☆☆ | M | Phase 2 | 未着手 |
 
 **推奨着手順:** 1 → 2 →（3 → 4）→ 5。Phase 3 は Phase 1/2 と並行可能。
 
@@ -523,11 +523,11 @@ export function useTheme(): [Theme, () => void] {
 > Phase 1 では `.light` クラスを付けてもまだ見た目は変わらない（CSS変数を Phase 2 で定義するため）。本フェーズはストアと永続化の確立まで。
 
 ### 受け入れ条件
-- [ ] 言語を切り替えてリロードすると、選択言語が保持される
-- [ ] `localStorage` を消すと既定（EN / `prefers-color-scheme`）に戻る
-- [ ] `?view=graph` 付きURLを開くと、保存ビューより URL が優先される
-- [ ] URL に `view` 無しで開くと、前回見ていたビューが復元される
-- [ ] `useTheme()` でトグルすると `<html class="light">` が付与/除去される（見た目変化は Phase 2）
+- [x] 言語を切り替えてリロードすると、選択言語が保持される
+- [x] `localStorage` を消すと既定（EN / `prefers-color-scheme`）に戻る
+- [x] `?view=graph` 付きURLを開くと、保存ビューより URL が優先される
+- [x] URL に `view` 無しで開くと、前回見ていたビューが復元される
+- [x] `useTheme()` でトグルすると `<html class="light">` が付与/除去される（見た目変化は Phase 2）
 
 ### ドキュメント更新
 - `design.md` §1.1 構成図・§5 に themeStore / persistence を追記、§1.4 に lastView の localStorage フォールバックを追記
@@ -614,7 +614,7 @@ theme: { extend: { colors: {
 
 **4. グループカラー（12グループ×3ロール）のトークン化**
 
-現状 `processGroups.ts` は `bg-blue-900` / `text-blue-200` / `border-blue-600` の固定ダーク値。ライトでは反転が必要。各グループ・各ロールに対しCSS変数を定義する：
+各グループ・各ロールに対しCSS変数を `index.css` に定義する：
 ```css
 :root {
   --grp-sys-surface: 30 58 138;  /* blue-900 */ --grp-sys-line: 37 99 235; --grp-sys-text: 191 219 254;
@@ -625,9 +625,9 @@ theme: { extend: { colors: {
   /* …12グループ分… */
 }
 ```
-- `tailwind.config.js` に `grp-sys-surface` 等のトークン色を登録（12×3=36色）。あるいは `safelist` ではなくトークン色名で静的記述
-- `processGroups.ts` の各クラスを `bg-grp-sys-surface` / `text-grp-sys-text` / `border-grp-sys-line` に変更
-- `ProcessCard.tsx` の `hover:${groupMeta.color}` 等の動的合成もトークンクラス名で同様に機能（クラス名が静的に存在すれば Tailwind がパージしない点に注意 → tailwind.config の colors に全36色を明示登録すればパージ安全）
+- CSS変数はReact Flow系コンポーネント（CustomNodes / vmodelLayout / SankeyCanvas等）の `cssVar()` / `groupColorHex()` 経由でのみ利用
+- `processGroups.ts` のクラス文字列（`bg-blue-900` / `text-blue-200` / `border-blue-600` 等）は Tailwind 組み込みカラーのまま維持。ライト/ダーク共通で同じクラスを使用
+- `tailwind.config.js` への `grp-*` トークン登録は実施しない（Tailwind クラス経由のグループ色切替は行わない）
 
 **5. React Flow 用 hex 色（CustomNodes.tsx / graphUtils.ts / vmodelLayout.ts / sankey*）への対応**
 
@@ -653,18 +653,18 @@ export function groupColorHex(groupId: ProcessGroup, role: 'surface'|'line'|'tex
 | `src/index.css` | 変更 | トークン定義（共通＋グループ12×3）、React Flow背景のトークン化 |
 | `tailwind.config.js` | 変更 | `theme.extend.colors` にセマンティック＋グループトークンを登録 |
 | `src/utils/themeColors.ts` | 新規 | `cssVar()` / `groupColorHex()` ヘルパー |
-| `src/data/processGroups.ts` | 変更 | クラス文字列をトークンクラスへ |
+| `src/data/processGroups.ts` | 変更なし | Tailwind組み込みカラークラスを維持（グループ色切替はCSS変数＋cssVar()経由のみ） |
 | `src/App.tsx` | 変更 | ヘッダーにテーマ切替ボタン（lucide `Sun`/`Moon`）を言語トグル隣に追加。`useTheme()` 使用 |
 | `src/**/*.tsx`（全ビュー・共通） | 変更 | gray-* ハードコードをトークンクラスへ機械置換 |
 | グラフ系（CustomNodes/graphUtils/vmodelLayout/SankeyCanvas 等） | 変更 | hex を `cssVar()`/`groupColorHex()` 経由に。`useTheme()` を依存に追加し再生成 |
 
 ### 受け入れ条件
-- [ ] ヘッダーのテーマ切替ボタンでライト/ダークが即時切替わる
-- [ ] ライトテーマで全5ビューが可読（コントラスト確保、白飛び/黒潰れなし）
-- [ ] グループカラーがライト/ダーク双方で判別可能（ProcessCard・グラフノード・サンキー帯）
-- [ ] React Flow のノード/エッジ色がテーマに追従する
-- [ ] テーマ選択がリロード後も保持される（Phase 1 連携）
-- [ ] `npm run build` が型エラーゼロで成功
+- [x] ヘッダーのテーマ切替ボタンでライト/ダークが即時切替わる
+- [x] ライトテーマで全5ビューが可読（コントラスト確保、白飛び/黒潰れなし）
+- [x] グループカラーがライト/ダーク双方で判別可能（ProcessCard・グラフノード・サンキー帯）
+- [x] React Flow のノード/エッジ色がテーマに追従する
+- [x] テーマ選択がリロード後も保持される（Phase 1 連携）
+- [x] `npm run build` が型エラーゼロで成功
 
 ### ドキュメント更新
 - `design.md` §6（スタイル設計）を全面改訂：トークン表・グループトークン表・hex取得方針を記載。§1.2 にテーマ機構を追記

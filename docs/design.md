@@ -103,7 +103,8 @@ AutomotiveSpiceVisualizer/
 │   │   ├── index.ts          ← ALL_PROCESSES / INFORMATION_ITEMS / PROCESS_GROUPS を re-export
 │   │   └── processGroups.ts  ← プロセスグループUIメタ情報（12グループ）
 │   ├── hooks/
-│   │   └── useAppUrlState.ts ← URLクエリパラメータ ↔ アプリ状態の双方向同期フック
+│   │   ├── useAppUrlState.ts       ← URLクエリパラメータ ↔ アプリ状態の双方向同期フック
+│   │   └── useKeyboardShortcuts.ts ← グローバルキーボードショートカット
 │   ├── utils/
 │   │   ├── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
 │   │   └── persistence.ts    ← localStorage 薄いラッパー（loadSetting/saveSetting/STORAGE_KEYS）
@@ -214,18 +215,26 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
   view: 'map' | 'graph' | 'vmodel' | 'matrix' （初期値: 'map'）
   lang: Language                    （useLang() フック経由）
   pendingNav: NavigateTarget | null  （グローバル検索からのジャンプ先、消費後null）
+  helpOpen: boolean                  （キーボードショートカット一覧ヘルプの表示フラグ）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ（4タブ）/ GlobalSearch / EN/JAトグル
+  <header>  ← ASPICE 4.0バッジ / ビュータブ（5タブ）/ GlobalSearch（ref={searchRef}） / EN/JAトグル
+  helpOpen === true → キーボードショートカット一覧ヘルプオーバーレイ（将来 HelpOverlay コンポーネントに分離予定）
   <main>
     view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
     view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
     view==='vmodel' → <VModelView lang navigateTo={pendingNav} onNavConsumed />
     view==='matrix' → <MatrixView lang onNavigate={handleNavigate} />
+    view==='flow'   → <ArtifactFlowView lang navigateTo={pendingNav} onNavConsumed />
 
 handleNavigate(target):
   target.type==='process' → setView('map'), setPendingNav(target)
   target.type==='bp'|'item' → setView('graph'), setPendingNav(target)
+
+useKeyboardShortcuts:
+  onSearchFocus  → searchRef.current?.focus()（Cmd/Ctrl+K および / キー）
+  onSelectView   → VIEWS[index] が存在すれば setView(v.id)（1〜5 キー）
+  onToggleHelp   → setHelpOpen((o) => !o)（? キー）
 ```
 
 ### 4.2 ProcessMapView
@@ -517,12 +526,18 @@ Props: { lang: Language; onNavigate: (target: NavigateTarget) => void }
   query: string          // 入力テキスト
   results: SearchResult[]// デバウンス200ms後の検索結果
   open: boolean          // ドロップダウン表示フラグ
+  activeIndex: number    // キーボード選択中の結果インデックス
 
 挙動:
   - 結果をカテゴリ別（process / bp / item）にグルーピング表示
   - 結果クリック → onNavigate(target) を呼び、query/open をリセット
-  - ESC / 外部クリックでドロップダウンを閉じる
+  - ESC / 外部クリックでドロップダウンを閉じる（既存の document-level Escape リスナー維持）
   - 結果20件上限に達した場合は注記を表示
+  - `forwardRef` で `GlobalSearchHandle { focus() }` を公開し、外部からフォーカス可能
+  - grouped をフラット化した `flatResults` に対して `↑↓` でキーボードナビゲーション
+  - `Enter` で選択中の結果へ遷移（handleResultClick と同等）
+  - 選択中の行は `bg-surface-2` で強調し `aria-selected` を付与
+  - `onMouseEnter` でホバーとキーボード選択を同期
 ```
 
 ### 4.13 searchUtils.ts（ユーティリティ）
@@ -550,6 +565,28 @@ type NavigateTarget =
 // 検索実行（EN+JA両方の全フィールドにマッチ、最大20件）
 function search(query: string, lang: Language): SearchResult[]
 ```
+
+### 4.14 useKeyboardShortcuts（フック）
+
+**責務:** アプリ全体のグローバルキーボードショートカット管理
+
+```typescript
+interface Handlers {
+  onSearchFocus: () => void   // Cmd/Ctrl+K または /
+  onSelectView: (index: number) => void // 1〜5 → VIEWS[0..4]
+  onToggleHelp: () => void    // ?
+}
+```
+
+`window` に `keydown` リスナーを登録し、以下のルールで処理を振り分ける。
+
+- `Cmd/Ctrl+K`: デフォルト動作をキャンセルして `onSearchFocus` を呼ぶ。テキスト入力中でも有効
+- `/`: テキスト入力中でなければ `onSearchFocus` を呼ぶ
+- `?`: テキスト入力中でなければ `onToggleHelp` を呼ぶ
+- `1`〜`5`: テキスト入力中でなく、修飾キー（Cmd/Ctrl/Alt）が押されていなければ `onSelectView(n-1)` を呼ぶ
+- `isTypingTarget()` が `true`（対象が INPUT / TEXTAREA / contenteditable）の場合、`/` `?` および数字キーは通常文字として扱い、ハンドラは呼ばない
+
+handlers は `useRef` で安定化しており、再マウントなしに最新の関数参照を参照する。リスナーはマウント時に登録、アンマウント時に解除する。
 
 ### 4.9 MatrixView（FR-7）
 
