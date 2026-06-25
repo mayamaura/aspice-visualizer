@@ -212,14 +212,15 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
 
 ```
 状態:
-  view: 'map' | 'graph' | 'vmodel' | 'matrix' （初期値: 'map'）
+  view: ViewId（初期値: 'map'、useAppUrlState 経由）
   lang: Language                    （useLang() フック経由）
   pendingNav: NavigateTarget | null  （グローバル検索からのジャンプ先、消費後null）
-  helpOpen: boolean                  （キーボードショートカット一覧ヘルプの表示フラグ）
+  helpOpen: boolean                  （HelpOverlay の表示フラグ）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ（5タブ）/ GlobalSearch（ref={searchRef}） / EN/JAトグル
-  helpOpen === true → キーボードショートカット一覧ヘルプオーバーレイ（将来 HelpOverlay コンポーネントに分離予定）
+  <header>  ← ASPICE 4.0バッジ / ビュータブ（5タブ）/ GlobalSearch（ref={searchRef}）
+             / ?ボタン（HelpCircle, onClick→setHelpOpen(true)）/ テーマトグル / EN/JAトグル
+  <OnboardingBanner>  ← 初回のみ表示するバナー（localStorage aspice-onboarded で管理）
   <main>
     view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
     view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
@@ -235,6 +236,8 @@ useKeyboardShortcuts:
   onSearchFocus  → searchRef.current?.focus()（Cmd/Ctrl+K および / キー）
   onSelectView   → VIEWS[index] が存在すれば setView(v.id)（1〜5 キー）
   onToggleHelp   → setHelpOpen((o) => !o)（? キー）
+
+VIEWS は src/data/viewMeta.ts の ViewMeta[] を参照（単一ソース）
 ```
 
 ### 4.2 ProcessMapView
@@ -588,6 +591,59 @@ interface Handlers {
 
 handlers は `useRef` で安定化しており、再マウントなしに最新の関数参照を参照する。リスナーはマウント時に登録、アンマウント時に解除する。
 
+### 4.15 HelpOverlay（共通コンポーネント）
+
+**責務:** ヘルプオーバーレイモーダル（キーボードショートカット一覧＋ビュー説明）
+
+```typescript
+Props: { open: boolean; onClose: () => void; lang: Language }
+```
+
+- `open === false` の時は `null` を返す（マウントしない）
+- 背景クリックで `onClose`。内側ダイアログは `stopPropagation`
+- `role="dialog" aria-modal="true"`
+- open になった時にダイアログ内の閉じるボタンへ初期フォーカス
+- `Esc` キーで `onClose`
+- フォーカストラップ: Tab/Shift+Tab でダイアログ内フォーカス可能要素をループ
+- 2セクション構成: ①ショートカット表（`SHORTCUTS` 定数をこのファイル内で管理） ②ビュー一覧（`VIEWS` から `icon + labelEn/Ja + descEn/Ja` を表示）
+- サイズ: `w-[28rem] max-w-[90vw] max-h-[80vh] overflow-y-auto`
+
+### 4.16 OnboardingBanner（共通コンポーネント）
+
+**責務:** 初回アクセス時のみ表示するガイドバナー
+
+```typescript
+Props: { lang: Language; onOpenHelp: () => void }
+```
+
+- 内部 `visible` state を `loadSetting(STORAGE_KEYS.onboarded, false) === false` で初期化
+- `visible === false` なら `null`
+- ヘッダー直下（`<main>` の上）に配置する `shrink-0` 横長バナー
+- 閉じる時: `saveSetting(STORAGE_KEYS.onboarded, true)` → `setVisible(false)`
+- 右側に「View shortcuts / ショートカット一覧」ボタン（`onOpenHelp` を呼ぶ）と閉じる X ボタン
+
+### 4.17 viewMeta.ts（データ）
+
+**責務:** 5ビューのメタデータを集約する単一ソース
+
+```typescript
+// src/data/viewMeta.ts
+export type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
+
+export interface ViewMeta {
+  id: ViewId
+  icon: LucideIcon
+  labelEn: string; labelJa: string
+  descEn: string; descJa: string
+}
+
+export const VIEWS: ViewMeta[]  // 5件
+```
+
+- App.tsx の `ViewId` 型・`VIEWS` 定数をここへ移設（重複排除）
+- `useAppUrlState.ts` もここから `ViewId` を import して利用
+- `HelpOverlay` がビュー説明表示に利用
+
 ### 4.9 MatrixView（FR-7）
 
 **責務:** プロセス（行）×情報項目（列）のクロスリファレンスマトリクス表示
@@ -695,6 +751,7 @@ export const STORAGE_KEYS = {
   lang: 'aspice-lang',
   theme: 'aspice-theme',
   lastView: 'aspice-last-view',
+  onboarded: 'aspice-onboarded',  // Phase 4: OnboardingBanner 閉じ済みフラグ
 }
 // loadSetting<T>(key, fallback): try/catch で localStorage 不可環境を握りつぶす
 // saveSetting(key, value): JSON.stringify してセット

@@ -197,14 +197,22 @@ export function ArtifactFlowView({
         </div>
       </div>
 
-      {/* 詳細パネル */}
-      {selection !== null && (
+      {/* 詳細パネル / 空状態ガイド */}
+      {selection !== null ? (
         <FlowDetailPanel
           selection={selection}
           lang={lang}
           onClose={() => setSelection(null)}
           onNavigate={handleNavigate}
         />
+      ) : (
+        <div className="w-80 flex items-center justify-center bg-surface border-l border-line-subtle shrink-0">
+          <p className="text-content-muted text-xs text-center px-4">
+            {lang === 'en'
+              ? 'Click a band or node to see details'
+              : '帯またはノードをクリックすると詳細が表示されます'}
+          </p>
+        </div>
       )}
     </div>
   )

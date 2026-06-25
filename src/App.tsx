@@ -1,35 +1,19 @@
 import { useRef, useState } from 'react'
-import { Map, GitBranch, Network, Grid2x2, Workflow, Sun, Moon, X } from 'lucide-react'
+import { Sun, Moon, HelpCircle } from 'lucide-react'
 import { ProcessMapView } from './components/ProcessMap/ProcessMapView'
 import { RelationshipGraphView } from './components/RelationshipGraph/RelationshipGraphView'
 import { VModelView } from './components/VModelView/VModelView'
 import { MatrixView } from './components/MatrixView/MatrixView'
 import { ArtifactFlowView } from './components/ArtifactFlowView/ArtifactFlowView'
 import { GlobalSearch, type GlobalSearchHandle } from './components/common/GlobalSearch'
+import { HelpOverlay } from './components/common/HelpOverlay'
+import { OnboardingBanner } from './components/common/OnboardingBanner'
 import { useLang } from './store/languageStore'
 import { useTheme } from './store/themeStore'
 import { useAppUrlState } from './hooks/useAppUrlState'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { NavigateTarget } from './utils/searchUtils'
-
-type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
-
-const VIEWS = [
-  { id: 'map' as ViewId, icon: Map, labelEn: 'Process Map', labelJa: 'プロセスマップ' },
-  { id: 'graph' as ViewId, icon: GitBranch, labelEn: 'Relationship Graph', labelJa: 'リレーションシップグラフ' },
-  { id: 'vmodel' as ViewId, icon: Network, labelEn: 'V-Model', labelJa: 'Vモデル' },
-  { id: 'matrix' as ViewId, icon: Grid2x2, labelEn: 'Matrix', labelJa: 'マトリクス' },
-  { id: 'flow' as ViewId, icon: Workflow, labelEn: 'Artifact Flow', labelJa: '成果物フロー' },
-]
-
-const SHORTCUTS: { keys: string; en: string; ja: string }[] = [
-  { keys: 'Ctrl/⌘ K  ·  /', en: 'Focus search', ja: '検索にフォーカス' },
-  { keys: '↑ ↓', en: 'Navigate results', ja: '検索結果を移動' },
-  { keys: 'Enter', en: 'Open selected', ja: '選択中を開く' },
-  { keys: '1 – 5', en: 'Switch view', ja: 'ビュー切替' },
-  { keys: '?', en: 'Toggle this help', ja: 'このヘルプを開閉' },
-  { keys: 'Esc', en: 'Close search', ja: '検索を閉じる' },
-]
+import { VIEWS } from './data/viewMeta'
 
 export default function App() {
   const { url, setView, setProcess, setGraphState, setFlowState } = useAppUrlState()
@@ -93,6 +77,15 @@ export default function App() {
         <GlobalSearch ref={searchRef} lang={lang} onNavigate={handleNavigate} />
 
         <div className="ml-auto flex items-center gap-3">
+          {/* Help Button */}
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="flex items-center justify-center w-7 h-7 rounded-lg border border-line text-content-2 hover:text-content hover:border-content-muted transition-colors"
+            aria-label={lang === 'en' ? 'Keyboard shortcuts and help' : 'ヘルプ'}
+          >
+            <HelpCircle size={13} />
+          </button>
+
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -114,45 +107,8 @@ export default function App() {
         </div>
       </header>
 
-      {helpOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-          onClick={() => setHelpOpen(false)}
-        >
-          <div
-            className="w-80 max-w-[90vw] bg-surface border border-line rounded-lg shadow-2xl p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-content">
-                {lang === 'en' ? 'Keyboard Shortcuts' : 'キーボードショートカット'}
-              </h2>
-              <button
-                onClick={() => setHelpOpen(false)}
-                aria-label={lang === 'en' ? 'Close' : '閉じる'}
-                className="text-content-muted hover:text-content transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <dl className="space-y-1.5 text-xs">
-              {SHORTCUTS.map(({ keys, en, ja }) => (
-                <div key={keys} className="flex items-center justify-between gap-4">
-                  <dt className="text-content-2">{lang === 'en' ? en : ja}</dt>
-                  <dd>
-                    <kbd className="px-1.5 py-0.5 rounded border border-line bg-surface-2 text-content-muted font-mono text-[10px]">
-                      {keys}
-                    </kbd>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-3 text-[10px] text-content-muted">
-              {lang === 'en' ? 'Full help arrives in a later update.' : '詳細ヘルプは今後のアップデートで追加されます。'}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Onboarding Banner (first visit only) */}
+      <OnboardingBanner lang={lang} onOpenHelp={() => setHelpOpen(true)} />
 
       {/* View Content */}
       <main className="flex-1 overflow-hidden">
@@ -192,6 +148,9 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Help Overlay */}
+      <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} lang={lang} />
     </div>
   )
 }
