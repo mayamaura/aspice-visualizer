@@ -16,6 +16,7 @@ import type { Language, Process } from '../../types/aspice'
 import type { NavigateTarget } from '../../utils/searchUtils'
 import { useTheme } from '../../store/themeStore'
 import { cssVar } from '../../utils/themeColors'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 const nodeTypes = { processNode: ProcessNode }
 
@@ -28,6 +29,8 @@ interface Props {
 export function VModelView({ lang, navigateTo, onNavConsumed }: Props) {
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
   const [theme] = useTheme()
+
+  useEscapeKey(!!selectedProcess, useCallback(() => setSelectedProcess(null), []))
 
   const { nodes, edges } = useMemo(() => buildVModelGraph(lang), [lang, theme])
 

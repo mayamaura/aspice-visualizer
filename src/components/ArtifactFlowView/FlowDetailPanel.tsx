@@ -18,7 +18,7 @@ interface Props {
 
 export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props) {
   return (
-    <div className="w-80 flex flex-col bg-surface border-l border-line-subtle overflow-hidden shrink-0">
+    <div className="w-80 flex flex-col bg-surface border-l border-line-subtle overflow-hidden shrink-0 animate-panel-in">
       {/* ヘッダー */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-line-subtle">
         <span className="text-xs font-semibold text-content truncate max-w-[200px]">
@@ -26,6 +26,7 @@ export function FlowDetailPanel({ selection, lang, onClose, onNavigate }: Props)
         </span>
         <button
           onClick={onClose}
+          aria-label={lang === 'en' ? 'Close' : '閉じる'}
           className="text-content-muted hover:text-content-2 transition-colors ml-2 shrink-0"
         >
           <X size={14} />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Process, ProcessGroup } from '../../types/aspice'
 import { ALL_PROCESSES, PROCESS_GROUPS } from '../../data'
 import { ProcessCard } from './ProcessCard'
@@ -8,6 +8,7 @@ import { t } from '../../store/languageStore'
 import type { Language } from '../../types/aspice'
 import type { NavigateTarget } from '../../utils/searchUtils'
 import { groupColorHex } from '../../utils/themeColors'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 interface Props {
   lang: Language
@@ -52,6 +53,9 @@ export function ProcessMapView({ lang, navigateTo, onNavConsumed, initialProcess
     }
     onNavConsumed?.()
   }, [navigateTo, onNavConsumed])
+
+  const clearSelection = useCallback(() => setSelected(null), [])
+  useEscapeKey(!!selected, clearSelection)
 
   const handleSelect = (p: Process) => {
     setSelected((prev) => (prev?.id === p.id ? null : p))

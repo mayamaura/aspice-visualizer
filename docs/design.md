@@ -96,7 +96,8 @@ AutomotiveSpiceVisualizer/
 │   │   └── aspiceRaw.ts      ← JSON Raw型定義（aspice_models.json スキーマに忠実）
 │   ├── store/
 │   │   ├── languageStore.ts  ← 言語切替グローバル状態（localStorage 永続化）
-│   │   └── themeStore.ts     ← テーマ切替グローバル状態（dark/light、localStorage 永続化）
+│   │   ├── themeStore.ts     ← テーマ切替グローバル状態（dark/light、localStorage 永続化）
+│   │   └── toastStore.ts     ← トースト通知グローバル状態（シングルトン pubsub、3秒自動消滅）
 │   ├── data/
 │   │   ├── aspice_models.json← 唯一のデータソース（差し替えで更新）
 │   │   ├── aspiceLoader.ts   ← JSON → 内部型への変換（JSON更新時の単一修正点）
@@ -104,7 +105,9 @@ AutomotiveSpiceVisualizer/
 │   │   └── processGroups.ts  ← プロセスグループUIメタ情報（12グループ）
 │   ├── hooks/
 │   │   ├── useAppUrlState.ts       ← URLクエリパラメータ ↔ アプリ状態の双方向同期フック
-│   │   └── useKeyboardShortcuts.ts ← グローバルキーボードショートカット
+│   │   ├── useKeyboardShortcuts.ts ← グローバルキーボードショートカット
+│   │   ├── useFocusTrap.ts         ← モーダル共通フォーカストラップ（Esc + Tab ループ + 初期フォーカス）
+│   │   └── useEscapeKey.ts         ← サイドパネル用軽量 Esc リスナー
 │   ├── utils/
 │   │   ├── searchUtils.ts    ← 全文横断検索ロジック。NavigateTarget型定義
 │   │   └── persistence.ts    ← localStorage 薄いラッパー（loadSetting/saveSetting/STORAGE_KEYS）
@@ -112,7 +115,9 @@ AutomotiveSpiceVisualizer/
 │       ├── common/
 │       │   ├── GroupFilterBar.tsx        ← グループフィルター（ProcessMap/Graph共用）
 │       │   ├── EdgeTypeFilterBar.tsx     ← エッジ種別フィルター（Graph BP levelのみ）
-│       │   └── GlobalSearch.tsx          ← グローバル検索ボックス（ヘッダー常設）
+│       │   ├── GlobalSearch.tsx          ← グローバル検索ボックス（ヘッダー常設）
+│       │   ├── Toast.tsx                 ← トースト通知（右下固定、aria-live）
+│       │   └── HelpOverlay.tsx           ← ヘルプオーバーレイモーダル（useFocusTrap 採用）
 │       ├── ProcessMap/
 │       │   ├── ProcessMapView.tsx  ← プロセスマップ全体レイアウト
 │       │   ├── ProcessCard.tsx     ← プロセスカード1件
@@ -218,15 +223,24 @@ interface CapabilityLevel { level: number; name?: BilingualText; process_attribu
   helpOpen: boolean                  （HelpOverlay の表示フラグ）
 
 レンダリング:
-  <header>  ← ASPICE 4.0バッジ / ビュータブ（5タブ）/ GlobalSearch（ref={searchRef}）
-             / ?ボタン（HelpCircle, onClick→setHelpOpen(true)）/ テーマトグル / EN/JAトグル
+  <header flex-wrap>
+    ← ASPICE 4.0 / CS 2.0 バッジ
+    ← タイトル（hidden lg:inline）
+    ← ビュータブ（role=tablist, 各button role=tab aria-selected, ラベル hidden md:inline）
+    ← GlobalSearch（ref={searchRef}、幅可変）
+    ← 共有リンクコピーボタン（Link2、navigator.clipboard.writeText → toast）
+    ← ?ボタン（HelpCircle, onClick→setHelpOpen(true)）
+    ← テーマトグル（aria-label）
+    ← EN/JAトグル（aria-label）
   <OnboardingBanner>  ← 初回のみ表示するバナー（localStorage aspice-onboarded で管理）
-  <main>
-    view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
-    view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
-    view==='vmodel' → <VModelView lang navigateTo={pendingNav} onNavConsumed />
-    view==='matrix' → <MatrixView lang onNavigate={handleNavigate} />
-    view==='flow'   → <ArtifactFlowView lang navigateTo={pendingNav} onNavConsumed />
+  <main role=tabpanel>
+    <div key={view} className="h-full animate-fade-in">  ← ビュー切替フェード
+      view==='map'    → <ProcessMapView lang navigateTo={pendingNav} onNavConsumed />
+      view==='graph'  → <RelationshipGraphView lang navigateTo={pendingNav} onNavConsumed />
+      view==='vmodel' → <VModelView lang navigateTo={pendingNav} onNavConsumed />
+      view==='matrix' → <MatrixView lang onNavigate={handleNavigate} />
+      view==='flow'   → <ArtifactFlowView lang navigateTo={pendingNav} onNavConsumed />
+  <Toast />  ← トースト通知（右下固定）
 
 handleNavigate(target):
   target.type==='process' → setView('map'), setPendingNav(target)
@@ -602,9 +616,7 @@ Props: { open: boolean; onClose: () => void; lang: Language }
 - `open === false` の時は `null` を返す（マウントしない）
 - 背景クリックで `onClose`。内側ダイアログは `stopPropagation`
 - `role="dialog" aria-modal="true"`
-- open になった時にダイアログ内の閉じるボタンへ初期フォーカス
-- `Esc` キーで `onClose`
-- フォーカストラップ: Tab/Shift+Tab でダイアログ内フォーカス可能要素をループ
+- `useFocusTrap(open, dialogRef, onClose)` を呼び出し、Esc・初期フォーカス・Tab ループを一元管理
 - 2セクション構成: ①ショートカット表（`SHORTCUTS` 定数をこのファイル内で管理） ②ビュー一覧（`VIEWS` から `icon + labelEn/Ja + descEn/Ja` を表示）
 - サイズ: `w-[28rem] max-w-[90vw] max-h-[80vh] overflow-y-auto`
 
@@ -643,6 +655,38 @@ export const VIEWS: ViewMeta[]  // 5件
 - App.tsx の `ViewId` 型・`VIEWS` 定数をここへ移設（重複排除）
 - `useAppUrlState.ts` もここから `ViewId` を import して利用
 - `HelpOverlay` がビュー説明表示に利用
+
+### 4.18 Toast / toastStore（v3.0 Phase 5）
+
+**責務:** アプリ全体で使うトースト通知（シングルトン pubsub + 表示コンポーネント）
+
+```typescript
+// src/store/toastStore.ts
+export interface ToastItem { id: number; message: string }
+export function toast(message: string): void   // 呼び出し側は翻訳済み文字列を渡す
+export function useToasts(): ToastItem[]        // React フック（themeStore 同型のシングルトン購読）
+```
+
+- `toast()` 呼び出しで `{ id, message }` を配列追加 → listeners 通知 → 3000ms 後に自動 dismiss
+- `Toast.tsx` は `useToasts()` を購読し右下固定縦スタックで表示。各トーストに `animate-fade-in`
+- `role="region" aria-live="polite" aria-label="Notifications"` で支援技術に通知
+- 発火箇所: PNG エクスポート完了（GraphExportButton）/ 共有リンクコピー（App.tsx）
+
+### 4.19 useFocusTrap / useEscapeKey（v3.0 Phase 5）
+
+**責務:** モーダル共通フォーカストラップ / サイドパネル軽量 Esc リスナー
+
+```typescript
+// src/hooks/useFocusTrap.ts
+useFocusTrap(open: boolean, ref: RefObject<HTMLElement | null>, onClose: () => void): void
+// open=true の間、初回フォーカス・Esc→onClose・Tab/Shift+Tab ループを担う
+// HelpOverlay と CellDetailPopup で共用（open=false 時は即 return）
+
+// src/hooks/useEscapeKey.ts
+useEscapeKey(enabled: boolean, onEscape: () => void): void
+// enabled=true の間だけ Esc keydown を購読。サイドパネル（ProcessMapView / RelationshipGraphView /
+// ArtifactFlowView / VModelView）の選択パネルを Esc で閉じるために使用
+```
 
 ### 4.9 MatrixView（FR-7）
 
@@ -707,10 +751,15 @@ Props: { process: Process; item: InformationItem; filled: boolean; onClick: (p, 
 Props: { process: Process; item: InformationItem; lang: Language; onClose: () => void }
 
 表示内容:
-  ヘッダー: グループバッジ / プロセスID / プロセス名 / Xボタン
+  ヘッダー: グループバッジ / プロセスID / プロセス名 / Xボタン（aria-label 付き）
   プロセス目的
   アウトプット情報項目: 情報項目ID / 名称 / 説明 / 特性リスト
   関連プロセス成果: output_information_items から outcome_refs を逆引きして表示
+
+a11y:
+  role="dialog" aria-modal="true" aria-label="{processId} {itemName}"
+  useFocusTrap(true, dialogRef, onClose) で Esc・フォーカストラップ・初期フォーカスを実装
+  animate-popup-in でエントランスアニメーション
 ```
 
 ### 4.11 EdgeTypeFilterBar（共通コンポーネント）
@@ -743,6 +792,13 @@ Props: { selected: Set<EdgeType>; lang: Language; onChange: (next: Set<EdgeType>
 - 初期値の決定順: `localStorage`（キー: `aspice-theme`）→ `matchMedia('(prefers-color-scheme: light)')` → `'dark'`
 - テーマ適用: `document.documentElement.classList.toggle('light', theme === 'light')`（ライト時のみ `.light` を付与）
 - Phase 2（テーマトークン化）で `.light` クラスに対する CSS 変数が定義される予定。Phase 1 時点では DOM クラスの付け外しのみで見た目は変化しない
+
+### 5.4 トースト通知 (`src/store/toastStore.ts`)（v3.0 Phase 5）
+
+- `themeStore.ts` と同型のモジュールスコープシングルトン＋pubsub 実装
+- `toast(message)` で `{ id, message }` を配列追加 → 全 listeners に通知 → 3000ms 後に自動削除
+- `useToasts()`: `ToastItem[]` を返す React フック（`useState` 購読方式）
+- `nextId` はモジュールスコープでインクリメント（重複 key 防止）
 
 ### 5.3 localStorage ラッパー (`src/utils/persistence.ts`)
 
@@ -847,6 +903,34 @@ groupColorHex('SYS', 'surface')  // → 'rgb(30 58 138)' (dark)
 | ReactFlow Background | `cssVar('--color-line')` |
 | ReactFlow MiniMap 背景 | `cssVar('--color-bg')` |
 | Vモデル対応線 | `cssVar('--color-line')` |
+
+### 6.5 トランジション・モーション（v3.0 Phase 5）
+
+`tailwind.config.js` の `theme.extend` に追加した keyframes と animation:
+
+| animation クラス | keyframes | 用途 |
+|---|---|---|
+| `animate-fade-in` | opacity 0→1、0.15s ease-out | ビュー切替（`<div key={view}>`） / トースト出現 |
+| `animate-panel-in` | opacity 0→1 + translateX(8px→0)、0.16s ease-out | サイドパネル（DetailPanel / ItemDetailPanel / BPLevelDetailPanel / FlowDetailPanel）エントランス |
+| `animate-popup-in` | opacity 0→1 + scale(0.97→1)、0.14s ease-out | CellDetailPopup エントランス |
+
+`prefers-reduced-motion: reduce` の場合は `animation-duration: 0.01ms !important` で全アニメーションを実質無効化（`src/index.css` に `@media` ブロクとして定義）。
+
+### 6.6 フォーカス可視化・アクセシビリティ（v3.0 Phase 5）
+
+グローバル `:focus-visible` アウトラインを `src/index.css` の `@layer base` 内で定義:
+
+```css
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible,
+[role="tab"]:focus-visible, [role="option"]:focus-visible {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+```
+
+セレクタを `button` 等のインタラクティブ要素に限定し、React Flow のキャンバス/ノードには不要なリングが当たらないよう設計している。
 
 ### 4.10 ArtifactFlowView（FR-8）
 

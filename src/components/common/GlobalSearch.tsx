@@ -112,7 +112,7 @@ export const GlobalSearch = forwardRef<GlobalSearchHandle, Props>(
     return (
       <div ref={containerRef} className="relative">
         {/* 検索ボックス */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-surface-2 w-64 focus-within:border-content-muted transition-colors">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line bg-surface-2 w-full sm:w-56 md:w-64 min-w-0 focus-within:border-content-muted transition-colors">
           <Search size={13} className="text-content-muted shrink-0" />
           <input
             ref={inputRef}
@@ -128,7 +128,11 @@ export const GlobalSearch = forwardRef<GlobalSearchHandle, Props>(
             className="flex-1 bg-transparent text-xs text-content placeholder-content-muted outline-none min-w-0"
           />
           {query && (
-            <button onClick={handleClear} className="text-content-muted hover:text-content-2 shrink-0">
+            <button
+              onClick={handleClear}
+              aria-label={lang === 'en' ? 'Clear search' : '検索をクリア'}
+              className="text-content-muted hover:text-content-2 shrink-0"
+            >
               <X size={12} />
             </button>
           )}
@@ -136,7 +140,7 @@ export const GlobalSearch = forwardRef<GlobalSearchHandle, Props>(
 
         {/* ドロップダウン */}
         {open && query.trim() && (
-          <div className="absolute top-full mt-1 left-0 w-96 bg-surface border border-line rounded-lg shadow-2xl z-50 overflow-hidden">
+          <div className="absolute top-full mt-1 left-0 w-[90vw] sm:w-96 bg-surface border border-line rounded-lg shadow-2xl z-50 overflow-hidden" role="listbox">
             {grouped.length === 0 ? (
               <div className="px-4 py-3 text-xs text-content-muted">
                 {lang === 'en' ? 'No results found.' : '結果が見つかりませんでした。'}
@@ -158,6 +162,7 @@ export const GlobalSearch = forwardRef<GlobalSearchHandle, Props>(
                       return (
                         <button
                           key={`${result.type}-${result.id}`}
+                          role="option"
                           onClick={() => handleResultClick(result)}
                           onMouseEnter={() => setActiveIndex(flatResults.indexOf(result))}
                           aria-selected={active}

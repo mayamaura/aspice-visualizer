@@ -10,6 +10,7 @@ import type { FlowSelection } from './FlowDetailPanel'
 import type { LayoutLink } from './sankeyLayout'
 import { groupColorHex } from '../../utils/themeColors'
 import { useTheme } from '../../store/themeStore'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 interface Props {
   lang: Language
@@ -33,6 +34,8 @@ export function ArtifactFlowView({
   )
   const [selection, setSelection] = useState<FlowSelection | null>(null)
   const [theme] = useTheme()
+
+  useEscapeKey(!!selection, useCallback(() => setSelection(null), []))
 
   useEffect(() => {
     if (!navigateTo) return
