@@ -2,6 +2,7 @@ export const STORAGE_KEYS = {
   lang: 'aspice-lang',
   theme: 'aspice-theme',
   lastView: 'aspice-last-view',
+  onboarded: 'aspice-onboarded',
 } as const
 
 export function loadSetting<T>(key: string, fallback: T): T {

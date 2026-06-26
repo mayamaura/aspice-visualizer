@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { GraphLevel } from '../components/RelationshipGraph/graphUtils'
 import { loadSetting, saveSetting, STORAGE_KEYS } from '../utils/persistence'
-
-type ViewId = 'map' | 'graph' | 'vmodel' | 'matrix' | 'flow'
+import type { ViewId } from '../data/viewMeta'
 
 export interface AppUrlState {
   view: ViewId
