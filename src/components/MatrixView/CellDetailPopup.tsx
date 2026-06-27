@@ -1,8 +1,10 @@
+import { useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Process, InformationItem, Language } from '../../types/aspice'
 import { t } from '../../store/languageStore'
 import { PROCESS_GROUPS } from '../../data'
 import { groupColorHex } from '../../utils/themeColors'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface Props {
   process: Process
@@ -13,11 +15,18 @@ interface Props {
 
 export function CellDetailPopup({ process, item, lang, onClose }: Props) {
   const groupMeta = PROCESS_GROUPS.find((g) => g.id === process.group)!
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  useFocusTrap(true, dialogRef, onClose)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-surface border border-line rounded-xl shadow-2xl w-[480px] max-h-[80vh] overflow-y-auto"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${process.id} ${t(item.name, lang)}`}
+        className="bg-surface border border-line rounded-xl shadow-2xl w-[480px] max-h-[80vh] overflow-y-auto animate-popup-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー */}
@@ -34,7 +43,11 @@ export function CellDetailPopup({ process, item, lang, onClose }: Props) {
             </div>
             <p className="text-xs text-content-2">{t(process.name, lang)}</p>
           </div>
-          <button onClick={onClose} className="text-content-muted hover:text-content mt-0.5">
+          <button
+            onClick={onClose}
+            aria-label={lang === 'en' ? 'Close' : '閉じる'}
+            className="text-content-muted hover:text-content mt-0.5"
+          >
             <X size={16} />
           </button>
         </div>

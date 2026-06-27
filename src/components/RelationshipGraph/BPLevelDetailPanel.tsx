@@ -62,7 +62,7 @@ function BPContent({ bp, process, groupMeta, lang, onClose }: { bp: BasePractice
           <div className="font-mono text-sm font-bold mb-1" style={{ color: groupColorHex(groupMeta.id, 'text') }}>{bp.id}</div>
           <div className="text-base font-semibold text-content leading-snug">{t(bp.name, lang)}</div>
         </div>
-        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} aria-label={lang === 'en' ? 'Close' : '閉じる'} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
@@ -124,7 +124,7 @@ function OutcomeContent({ outcome, process, groupMeta, lang, onClose }: { outcom
             {t(outcome.text, lang)}
           </div>
         </div>
-        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} aria-label={lang === 'en' ? 'Close' : '閉じる'} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
@@ -179,7 +179,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
           <div className="font-mono text-sm font-bold text-item mb-1">{item.id}</div>
           <div className="text-base font-semibold text-content leading-snug">{t(item.name, lang)}</div>
         </div>
-        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
+        <button onClick={onClose} aria-label={lang === 'en' ? 'Close' : '閉じる'} className="text-content-2 hover:text-content mt-0.5 shrink-0"><X size={18} /></button>
       </div>
 
       {/* Body */}
@@ -210,7 +210,7 @@ function ItemContent({ item, lang, onClose }: { item: InformationItem; lang: Lan
 
 export function BPLevelDetailPanel({ selected, groupMeta, lang, onClose }: Props) {
   return (
-    <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden">
+    <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden animate-panel-in">
       {selected.type === 'bp' && (
         <BPContent bp={selected.bp} process={selected.process} groupMeta={groupMeta} lang={lang} onClose={onClose} />
       )}

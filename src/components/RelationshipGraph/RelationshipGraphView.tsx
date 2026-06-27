@@ -30,6 +30,7 @@ import { INFORMATION_ITEMS } from '../../data'
 import type { NavigateTarget } from '../../utils/searchUtils'
 import { useTheme } from '../../store/themeStore'
 import { cssVar, groupColorHex } from '../../utils/themeColors'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 
 const nodeTypes = {
   groupNode: GroupNode,
@@ -236,6 +237,14 @@ export function RelationshipGraphView({ lang, navigateTo, onNavConsumed, initial
 
   const groupMeta = focusProcess ? PROCESS_GROUPS.find((g) => g.id === focusProcess.group) : null
   const focusItem = focusItemId ? INFORMATION_ITEMS.find((i) => i.id === focusItemId) : null
+
+  // Esc でサイドパネルを閉じる（BP/item パネルが開いている場合）
+  const anyPanelOpen = !!(level === 'bp' && selectedBPNode) || !!(level === 'item' && focusItem)
+  const closePanels = useCallback(() => {
+    if (level === 'bp' && selectedBPNode) setSelectedBPNode(null)
+    else if (level === 'item' && focusItem) handleBackToItemList()
+  }, [level, selectedBPNode, focusItem]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEscapeKey(anyPanelOpen, closePanels)
 
   const bgColor = cssVar('--color-bg')
   const surfaceColor = cssVar('--color-surface')

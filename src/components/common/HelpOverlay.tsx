@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Language } from '../../types/aspice'
 import { VIEWS } from '../../data/viewMeta'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 interface Props {
   open: boolean
@@ -20,46 +21,8 @@ const SHORTCUTS: { keys: string; en: string; ja: string }[] = [
 
 export function HelpOverlay({ open, onClose, lang }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const closeBtnRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    closeBtnRef.current?.focus()
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-        return
-      }
-      if (e.key !== 'Tab') return
-      const dialog = dialogRef.current
-      if (!dialog) return
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button, [href], input, [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => !el.hasAttribute('disabled'))
-      if (focusable.length === 0) return
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+  useFocusTrap(open, dialogRef, onClose)
 
   if (!open) return null
 
@@ -82,7 +45,6 @@ export function HelpOverlay({ open, onClose, lang }: Props) {
             {lang === 'en' ? 'Help' : 'ヘルプ'}
           </h2>
           <button
-            ref={closeBtnRef}
             onClick={onClose}
             aria-label={lang === 'en' ? 'Close' : '閉じる'}
             className="text-content-muted hover:text-content transition-colors"

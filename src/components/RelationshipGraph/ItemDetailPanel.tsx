@@ -44,7 +44,7 @@ interface Props {
 
 export function ItemDetailPanel({ item, lang, onClose }: Props) {
   return (
-    <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden">
+    <div className="flex flex-col w-80 shrink-0 bg-bg border-l border-line-subtle overflow-hidden animate-panel-in">
       {/* Header */}
       <div className="px-5 py-4 bg-item-bg border-b border-line-subtle flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -53,7 +53,7 @@ export function ItemDetailPanel({ item, lang, onClose }: Props) {
             {t(item.name, lang)}
           </div>
         </div>
-        <button onClick={onClose} className="text-content-2 hover:text-content mt-0.5 shrink-0">
+        <button onClick={onClose} aria-label={lang === 'en' ? 'Close' : '閉じる'} className="text-content-2 hover:text-content mt-0.5 shrink-0">
           <X size={18} />
         </button>
       </div>
